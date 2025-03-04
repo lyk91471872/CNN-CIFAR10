@@ -4,8 +4,8 @@ from enum import IntEnum
 # Global flags
 USE_AMP = True             # Enable automatic mixed precision
 USE_MIXUP = True           # Enable mixup data augmentation
-NUM_WORKERS = 64           # Number of DataLoader workers (adjust based on your CPU)
-BATCH_SIZE = 256           # Batch size for training and evaluation
+NUM_WORKERS = 32           # Number of DataLoader workers (optimized based on benchmark)
+BATCH_SIZE = 1024          # Batch size for training and evaluation (optimized based on benchmark)
 PREFETCH_FACTOR = 32       # DataLoader prefetch factor
 
 # Optimizer and training hyperparameters
