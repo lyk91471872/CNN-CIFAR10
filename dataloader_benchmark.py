@@ -2,6 +2,8 @@ import itertools
 import numpy as np
 import time
 import torch
+import os
+import resource
 from torch.utils.data import DataLoader
 
 from config import DATA_PATHS
@@ -11,27 +13,14 @@ NUM_WORKERS_LIST = [4, 8, 16, 32, 48, 64]
 BATCH_SIZE_LIST = [256, 512, 1024, 2048]
 PREFETCH_FACTOR_LIST = [2, 4, 8, 16, 32]
 
-def benchmark_dataloader(dataset, num_workers, batch_size, prefetch_factor):
-    '''Benchmark the DataLoader: time to iterate over the dataset for 3 epochs.'''
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=prefetch_factor
-    )
-    
+def get_file_descriptor_limit():
+    """Get the current file descriptor limit."""
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    return soft
+
+def cleanup_loader(loader):
+    """Clean up DataLoader resources."""
     try:
-        start_time = time.time()
-        # Iterate through the loader for 3 epochs
-        for epoch in range(3):
-            for _ in loader:
-                pass
-        return time.time() - start_time
-    finally:
-        # Clean up resources
         if hasattr(loader, '_iterator'):
             del loader._iterator
         if hasattr(loader, '_workers'):
@@ -40,8 +29,39 @@ def benchmark_dataloader(dataset, num_workers, batch_size, prefetch_factor):
                     w.terminate()
             loader._workers = []
         torch.cuda.empty_cache()  # Clear GPU memory if using CUDA
+    except Exception as e:
+        print(f"Warning: Error during cleanup: {e}")
+
+def benchmark_dataloader(dataset, num_workers, batch_size, prefetch_factor):
+    '''Benchmark the DataLoader: time to iterate over the dataset for 3 epochs.'''
+    loader = None
+    try:
+        loader = DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=prefetch_factor
+        )
+        
+        start_time = time.time()
+        # Iterate through the loader for 3 epochs
+        for epoch in range(3):
+            for _ in loader:
+                pass
+        return time.time() - start_time
+    finally:
+        if loader is not None:
+            cleanup_loader(loader)
+            time.sleep(1)  # Give system time to clean up resources
 
 def run_grid_search(dataset):
+    # Check system limits
+    fd_limit = get_file_descriptor_limit()
+    print(f"\nSystem file descriptor limit: {fd_limit}")
+    
     results = []
     for num_workers, batch_size, prefetch_factor in itertools.product(
         NUM_WORKERS_LIST, BATCH_SIZE_LIST, PREFETCH_FACTOR_LIST
@@ -55,6 +75,7 @@ def run_grid_search(dataset):
             print(f"Error with workers={num_workers}, batch={batch_size}, prefetch={prefetch_factor}: {e}")
             # Add failed result with None time
             results.append((num_workers, batch_size, prefetch_factor, None))
+        time.sleep(2)  # Add delay between tests
     return results
 
 def main():
