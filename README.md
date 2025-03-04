@@ -1,0 +1,2 @@
+# CNN-CIFAR10
+NYU CS-GY-6953-project1
