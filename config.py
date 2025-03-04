@@ -6,7 +6,7 @@ USE_AMP = True             # Enable automatic mixed precision
 USE_MIXUP = True           # Enable mixup data augmentation
 NUM_WORKERS = 64           # Number of DataLoader workers (adjust based on your CPU)
 BATCH_SIZE = 256           # Batch size for training and evaluation
-PREFETCH_FACTOR = 8        # DataLoader prefetch factor
+PREFETCH_FACTOR = 32       # DataLoader prefetch factor
 
 # Optimizer and training hyperparameters
 LEARNING_RATE = 0.1
