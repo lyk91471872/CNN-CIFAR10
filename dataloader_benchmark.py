@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 from config import DATA_PATHS, PREFETCH_FACTOR
 from dataset import CIFAR10Dataset
 
-NUM_WORKERS_LIST = [4, 8, 16, 32, 48, 64]
+# Benchmark configurations
+NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
 BATCH_SIZE_LIST = [256, 512, 1024, 2048]
 
 def get_file_descriptor_limit():
