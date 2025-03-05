@@ -1,4 +1,4 @@
-from utils.requirements import install_requirements
+from requirements import install_requirements
 
 try:
     install_requirements()

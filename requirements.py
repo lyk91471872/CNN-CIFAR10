@@ -4,6 +4,7 @@ import re
 
 def install_requirements():
     """Check and install required packages from requirements.txt silently."""
+    print("Checking requirements...")
     try:
         with open('requirements.txt', 'r') as f:
             required_packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
