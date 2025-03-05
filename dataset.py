@@ -86,7 +86,7 @@ class CIFAR10TestDataset(Dataset):
 class CIFAR10BenchmarkDataset(Dataset):
     """
     Simplified CIFAR-10 dataset for benchmarking.
-    Returns raw data without any transformations.
+    Applies only base transforms (ToTensor + Normalize) without augmentation.
     """
     def __init__(self, data_paths):
         self.data = []
@@ -95,11 +95,20 @@ class CIFAR10BenchmarkDataset(Dataset):
             batch = load_cifar_batch(path)
             self.data.append(batch[b'data'])
             self.labels.extend(batch[b'labels'])
-        # Reshape data to (N, 3, 32, 32)
-        self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32)
+        # Reshape data to (N, 32, 32, 3)
+        self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
+        
+        # Base transform for normalization
+        self.base_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
         
     def __len__(self):
         return len(self.labels)
     
     def __getitem__(self, idx):
-        return torch.from_numpy(self.data[idx]).float(), self.labels[idx]
+        img = self.data[idx]
+        pil_img = Image.fromarray(img)
+        img = self.base_transform(pil_img)
+        return img, self.labels[idx]

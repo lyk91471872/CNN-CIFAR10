@@ -34,7 +34,6 @@ TRANSFORM = transforms.Compose([
 # DataLoader parameters
 DATALOADER = {
     'batch_size': 1024,
-    'shuffle': True,
     'num_workers': 32,
     'pin_memory': True,
     'persistent_workers': True,
