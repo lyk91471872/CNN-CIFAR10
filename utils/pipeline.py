@@ -33,8 +33,7 @@ class Pipeline:
         correct = 0
         total = 0
         
-        pbar = tqdm(train_loader, desc="Training", leave=True)
-        for aug_inputs, clean_inputs, targets in pbar:
+        for aug_inputs, clean_inputs, targets in train_loader:
             aug_inputs, targets = aug_inputs.to(self.device), targets.to(self.device)
             
             # Mixup augmentation
@@ -65,14 +64,6 @@ class Pipeline:
                           (1 - lam) * predicted.eq(targets_b).float()).sum().item()
             else:
                 correct += predicted.eq(targets).sum().item()
-            
-            # Update progress bar with running averages
-            current_loss = train_loss / (pbar.n + 1)
-            current_acc = 100. * correct / total
-            pbar.set_postfix({
-                'loss': f'{current_loss:.4f}',
-                'acc': f'{current_acc:.2f}%'
-            })
         
         train_loss = train_loss / len(train_loader)
         train_acc = 100. * correct / total
@@ -86,8 +77,7 @@ class Pipeline:
         total = 0
         
         with torch.no_grad():
-            pbar = tqdm(val_loader, desc="Validation", leave=True)
-            for aug_inputs, clean_inputs, targets in pbar:
+            for aug_inputs, clean_inputs, targets in val_loader:
                 clean_inputs, targets = clean_inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(clean_inputs)
                 loss = self.criterion(outputs, targets)
@@ -96,14 +86,6 @@ class Pipeline:
                 _, predicted = outputs.max(1)
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()
-                
-                # Update progress bar with running averages
-                current_loss = val_loss / (pbar.n + 1)
-                current_acc = 100. * correct / total
-                pbar.set_postfix({
-                    'loss': f'{current_loss:.4f}',
-                    'acc': f'{current_acc:.2f}%'
-                })
         
         val_loss = val_loss / len(val_loader)
         val_acc = 100. * correct / total
@@ -115,7 +97,7 @@ class Pipeline:
         Args:
             train_loader: DataLoader for training data
             val_loader: DataLoader for validation data
-            should_save: Whether to save the best model based on validation accuracy
+            should_save: Whether to save the best model based on validation loss
             
         Returns:
             Dictionary containing training history
@@ -127,7 +109,9 @@ class Pipeline:
             'val_accs': []
         }
         
-        for epoch in range(conf.TRAIN['epochs']):
+        best_val_loss = float('inf')
+        pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
+        for epoch in pbar:
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.val_one_epoch(val_loader)
             self.scheduler.step(val_loss)
@@ -136,7 +120,8 @@ class Pipeline:
                 print("Early stopping triggered")
                 break
             
-            if should_save and val_acc > max(history['val_accs'], default=0):
+            if should_save and val_loss < best_val_loss:
+                best_val_loss = val_loss
                 self.model.save()
             
             history['train_losses'].append(train_loss)
@@ -144,9 +129,12 @@ class Pipeline:
             history['train_accs'].append(train_acc)
             history['val_accs'].append(val_acc)
             
-            print(f'Epoch {epoch+1}/{conf.TRAIN["epochs"]}:')
-            print(f'Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%')
-            print(f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%')
+            pbar.set_postfix({
+                'train_loss': f'{train_loss:.4f}',
+                'train_acc': f'{train_acc:.2f}%',
+                'val_loss': f'{val_loss:.4f}',
+                'val_acc': f'{val_acc:.2f}%'
+            })
         
         return history
     
@@ -157,8 +145,7 @@ class Pipeline:
         indices = []
         
         with torch.no_grad():
-            pbar = tqdm(test_loader, desc="Test Inference")
-            for inputs, idx in pbar:
+            for inputs, idx in test_loader:
                 inputs = inputs.to(self.device)
                 outputs = self.model(inputs)
                 _, preds = outputs.max(1)

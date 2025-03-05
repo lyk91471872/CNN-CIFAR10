@@ -16,7 +16,9 @@ class BaseModel(nn.Module):
             path: Optional full path to save the model. If None, uses the default path.
         """
         path = path or self.weight_path
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         torch.save(self.state_dict(), path)
+        print(f"\nSaved model weights to {path}")
         
     def load(self, path: str = None) -> None:
         """Load model weights from the specified path or default path.
@@ -25,4 +27,7 @@ class BaseModel(nn.Module):
             path: Optional full path to load the model from. If None, uses the default path.
         """
         path = path or self.weight_path
-        self.load_state_dict(torch.load(path)) 
+        if os.path.exists(path):
+            self.load_state_dict(torch.load(path, weights_only=True))
+        else:
+            print(f"No weights found at {path}. Using initialized weights.") 

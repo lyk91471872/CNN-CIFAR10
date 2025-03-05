@@ -33,7 +33,7 @@ TRANSFORM = transforms.Compose([
 
 # DataLoader parameters
 DATALOADER = {
-    'batch_size': 1024,
+    'batch_size': 512,
     'num_workers': 32,
     'pin_memory': True,
     'persistent_workers': True,
@@ -61,6 +61,5 @@ TRAIN = {
     'early_stopping_patience': 10,
     'early_stopping_min_delta': 0.001,
     'mixup_alpha': 0.2,
-    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'use_cross_validation': True
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu'
 } 

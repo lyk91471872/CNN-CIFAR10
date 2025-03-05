@@ -5,7 +5,6 @@ from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from config import TRANSFORM
-import torch
 
 def load_cifar_batch(file_path):
     """
