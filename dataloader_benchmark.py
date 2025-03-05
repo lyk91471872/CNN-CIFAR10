@@ -4,27 +4,22 @@ import time
 import torch
 from torch.utils.data import DataLoader
 
-from config import DATA_PATHS, PREFETCH_FACTOR
+from config import TRAIN_DATA_PATHS, DATALOADER_KWARGS
 from dataset import CIFAR10Dataset
 
 NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
 BATCH_SIZE_LIST = [256, 512, 1024]
+N_EPOCHS = 3
 
 def benchmark_dataloader(dataset, num_workers, batch_size):
-    '''Benchmark the DataLoader: time to iterate over the dataset for 3 epochs.'''
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=True,
-        persistent_workers=True,
-        prefetch_factor=PREFETCH_FACTOR
-    )
-    
+    loader_kwargs = {
+        **DATALOADER_KWARGS,  # Copy all other specs
+        'num_workers': num_workers,
+        'batch_size': batch_size
+    }
+    loader = DataLoader(dataset, **loader_kwargs)
     start_time = time.time()
-    # Iterate through the loader for 3 epochs
-    for epoch in range(3):
+    for epoch in range(N_EPOCHS):
         for _ in loader:
             pass
     return time.time() - start_time
@@ -41,17 +36,14 @@ def run_grid_search(dataset):
             print(f"Success! Time: {t:.2f}s")
         except Exception as e:
             print(f"Error with workers={num_workers}, batch={batch_size}: {e}")
-            # Add failed result with None time
             results.append((num_workers, batch_size, None))
-        time.sleep(2)  # Add delay between tests
+        time.sleep(0.5)
     return results
 
 def main():
     print("Starting dataloader benchmark...")
-    dataset = CIFAR10Dataset(data_paths=DATA_PATHS, transform=None)
+    dataset = CIFAR10Dataset(data_paths=TRAIN_DATA_PATHS, transform=None)
     results = run_grid_search(dataset)
-    
-    # Filter out failed results and find best configuration
     successful_results = [r for r in results if r[2] is not None]
     if successful_results:
         best_config = min(successful_results, key=lambda x: x[2])
@@ -59,7 +51,6 @@ def main():
     else:
         print("\nNo successful configurations found!")
     
-    # Save results, including failed attempts
     np.savetxt("benchmark_results.csv", results, delimiter=",", fmt='%s', 
                header="num_workers,batch_size,time_taken", 
                comments="")

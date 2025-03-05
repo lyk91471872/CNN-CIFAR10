@@ -4,6 +4,7 @@ import pickle
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
+from config import TRANSFORM
 
 def load_cifar_batch(file_path):
     """
@@ -22,7 +23,7 @@ class CIFAR10Dataset(Dataset):
       - clean_image: image processed by a base transform (ToTensor + Normalize).
       - label: corresponding label.
     """
-    def __init__(self, data_paths, transform=None):
+    def __init__(self, data_paths):
         self.data = []
         self.labels = []
         for path in data_paths:
@@ -31,12 +32,6 @@ class CIFAR10Dataset(Dataset):
             self.labels.extend(batch[b'labels'])
         # Reshape data to (N, 32, 32, 3)
         self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
-        self.transform = transform
-        # Base transform: only convert to tensor and normalize.
-        self.base_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
         
     def __len__(self):
         return len(self.labels)
@@ -44,10 +39,19 @@ class CIFAR10Dataset(Dataset):
     def __getitem__(self, idx):
         img = self.data[idx]
         pil_img = Image.fromarray(img)
-        # Clean version for metrics
-        clean_img = self.base_transform(pil_img)
-        # Augmented version for training - use base_transform if no transform provided
-        aug_img = self.transform(pil_img) if self.transform is not None else clean_img
+        
+        # Always apply base transforms
+        base_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+        clean_img = base_transform(pil_img)
+        
+        # Apply augmentation transform from config
+        aug_img = TRANSFORM(pil_img)
+        # Apply base transforms after augmentation
+        aug_img = base_transform(aug_img)
+            
         label = self.labels[idx]
         return aug_img, clean_img, label
 
@@ -57,10 +61,9 @@ class CIFAR10TestDataset(Dataset):
     
     Returns a tuple (transformed_image, index).
     """
-    def __init__(self, file_path, transform=None):
+    def __init__(self, file_path):
         batch = load_cifar_batch(file_path)
         self.data = batch[b'data']
-        self.transform = transform
         
     def __len__(self):
         return len(self.data)
@@ -68,6 +71,13 @@ class CIFAR10TestDataset(Dataset):
     def __getitem__(self, idx):
         img = self.data[idx]
         pil_img = Image.fromarray(img)
-        if self.transform:
-            img = self.transform(pil_img)
+        
+        # Always apply base transforms
+        base_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ])
+        
+        # Always apply base transforms
+        img = base_transform(img)
         return img, idx

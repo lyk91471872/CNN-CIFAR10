@@ -1,46 +1,67 @@
 import torch
-from enum import IntEnum
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
+from torchvision import transforms
+from torchvision.transforms import AutoAugment, AutoAugmentPolicy
+import os
 
-# Global flags
-USE_AMP = True             # Enable automatic mixed precision
-USE_MIXUP = True           # Enable mixup data augmentation
-NUM_WORKERS = 32           # Number of DataLoader workers (optimized based on benchmark)
-BATCH_SIZE = 1024          # Batch size for training and evaluation (optimized based on benchmark)
-PREFETCH_FACTOR = 32       # DataLoader prefetch factor
-
-# Optimizer and training hyperparameters
-LEARNING_RATE = 0.1
-WEIGHT_DECAY = 5e-4
-PATIENCE = 10
-MAX_EPOCHS = 100
-
-# Model selection
-class ModelTypeEnum(IntEnum):
-    CUSTOM_RESNET18 = 0
-    CUSTOM_EFFNETV2_B0 = 1
-MODEL_TYPE = 1
+# Create directories for saved files
+os.makedirs('weights', exist_ok=True)
+os.makedirs('graphs', exist_ok=True)
 
 # Data paths
-DATA_DIR = "data/cifar-10-python/cifar-10-batches-py"
-DATA_PATHS = [f"{DATA_DIR}/data_batch_{i}" for i in range(1, 6)]
-TEST_FILE = "data/cifar_test_nolabel.pkl"
+TRAIN_DATA_PATHS = [f'data_batch_{i}' for i in range(1, 6)]
+TEST_DATA_PATH = 'test_batch'
 
-# Transform configurations (for reference in your transform definitions)
-TRAIN_TRANSFORMS_CONFIG = {
-    "RandomHorizontalFlip": True,
-    "RandomRotation": 5,                # Rotation in degrees
-    "RandomCrop_padding": 2,            # Padding for random crop
-    "ColorJitter": {"brightness": 0.2, "contrast": 0.2, "saturation": 0.1, "hue": 0.05},
-    "ToTensor": True,
-    "Normalize": {"mean": (0.5, 0.5, 0.5), "std": (0.5, 0.5, 0.5)},
-    # "RandAugment": {"num_ops": 2, "magnitude": 9},  # Uncomment if needed
-    # "RandomErasing": {"p": 0.3, "scale": (0.02, 0.33), "ratio": (0.3, 3.3)}  # Uncomment if needed
+# Save paths
+WEIGHTS_DIR = 'weights'
+GRAPHS_DIR = 'graphs'
+
+# Dataset parameters
+NUM_CLASSES = 10
+IMAGE_SIZE = 32
+CHANNELS = 3
+
+# Augmentation transforms applied only to training data
+TRANSFORM = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
+])
+
+# DataLoader parameters
+DATALOADER = {
+    'batch_size': 1024,
+    'shuffle': True,
+    'num_workers': 32,
+    'pin_memory': True,
+    'persistent_workers': True,
+    'prefetch_factor': 32
 }
 
-TEST_TRANSFORMS_CONFIG = {
-    "ToTensor": True,
-    "Normalize": {"mean": (0.5, 0.5, 0.5), "std": (0.5, 0.5, 0.5)}
+# Optimizer parameters
+OPTIMIZER = {
+    'lr': 0.01,
+    'weight_decay': 1e-4,
+    'momentum': 0.9
 }
 
-# Device configuration: Automatically detect GPU if available.
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Scheduler parameters
+SCHEDULER = {
+    'mode': 'min',
+    'factor': 0.1,
+    'patience': 5,
+    'verbose': True,
+    'min_lr': 1e-4
+}
+
+# Training parameters
+TRAIN = {
+    'epochs': 100,
+    'early_stopping_patience': 10,
+    'early_stopping_min_delta': 0.001,
+    'mixup_alpha': 0.2,
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+    'use_cross_validation': True
+} 

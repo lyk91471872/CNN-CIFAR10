@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+from .base import BaseModel
 
 class BasicBlock(nn.Module):
     expansion = 1
@@ -24,7 +26,7 @@ class BasicBlock(nn.Module):
         out = torch.relu(out)
         return out
 
-class CustomResNet18(nn.Module):
+class CustomResNet18(BaseModel):
     def __init__(self, num_classes=10):
         super(CustomResNet18, self).__init__()
         self.in_channels = 64
@@ -54,4 +56,7 @@ class CustomResNet18(nn.Module):
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
-        return out 
+        return out
+        
+    def __str__(self):
+        return "resnet18" 

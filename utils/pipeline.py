@@ -1,0 +1,207 @@
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, Subset
+from sklearn.model_selection import KFold
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from typing import Dict, List, Tuple
+from tqdm import tqdm
+import pandas as pd
+import numpy as np
+
+import config as conf
+from .early_stopping import EarlyStopping
+from .augmentation import mixup_data
+
+class Pipeline:
+    def __init__(self, model: nn.Module):
+        self.model = model.to(conf.TRAIN['device'])
+        self.device = conf.TRAIN['device']
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.SGD(self.model.parameters(), **conf.OPTIMIZER)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
+        self.early_stopping = EarlyStopping(
+            patience=conf.TRAIN['early_stopping_patience'],
+            min_delta=conf.TRAIN['early_stopping_min_delta'],
+            verbose=True
+        )
+    
+    def train_one_epoch(self, train_loader: DataLoader) -> Tuple[float, float]:
+        """Train for one epoch and return loss and accuracy."""
+        self.model.train()
+        train_loss = 0
+        correct = 0
+        total = 0
+        
+        pbar = tqdm(train_loader, desc="Training", leave=True)
+        for aug_inputs, clean_inputs, targets in pbar:
+            aug_inputs, targets = aug_inputs.to(self.device), targets.to(self.device)
+            
+            # Mixup augmentation
+            if conf.TRAIN['mixup_alpha'] > 0:
+                aug_inputs, targets_a, targets_b, lam = mixup_data(
+                    aug_inputs, targets, conf.TRAIN['mixup_alpha']
+                )
+            
+            self.optimizer.zero_grad()
+            outputs = self.model(aug_inputs)
+            
+            # Calculate loss
+            if conf.TRAIN['mixup_alpha'] > 0:
+                loss = lam * self.criterion(outputs, targets_a) + (1 - lam) * self.criterion(outputs, targets_b)
+            else:
+                loss = self.criterion(outputs, targets)
+            
+            loss.backward()
+            self.optimizer.step()
+            
+            train_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            
+            if conf.TRAIN['mixup_alpha'] > 0:
+                # Weighted accuracy based on label proportions
+                correct += (lam * predicted.eq(targets_a).float() + 
+                          (1 - lam) * predicted.eq(targets_b).float()).sum().item()
+            else:
+                correct += predicted.eq(targets).sum().item()
+            
+            # Update progress bar with running averages
+            current_loss = train_loss / (pbar.n + 1)
+            current_acc = 100. * correct / total
+            pbar.set_postfix({
+                'loss': f'{current_loss:.4f}',
+                'acc': f'{current_acc:.2f}%'
+            })
+        
+        train_loss = train_loss / len(train_loader)
+        train_acc = 100. * correct / total
+        return train_loss, train_acc
+    
+    def val_one_epoch(self, val_loader: DataLoader) -> Tuple[float, float]:
+        """Validate for one epoch and return loss and accuracy."""
+        self.model.eval()
+        val_loss = 0
+        correct = 0
+        total = 0
+        
+        with torch.no_grad():
+            pbar = tqdm(val_loader, desc="Validation", leave=True)
+            for aug_inputs, clean_inputs, targets in pbar:
+                clean_inputs, targets = clean_inputs.to(self.device), targets.to(self.device)
+                outputs = self.model(clean_inputs)
+                loss = self.criterion(outputs, targets)
+                
+                val_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+                
+                # Update progress bar with running averages
+                current_loss = val_loss / (pbar.n + 1)
+                current_acc = 100. * correct / total
+                pbar.set_postfix({
+                    'loss': f'{current_loss:.4f}',
+                    'acc': f'{current_acc:.2f}%'
+                })
+        
+        val_loss = val_loss / len(val_loader)
+        val_acc = 100. * correct / total
+        return val_loss, val_acc
+    
+    def train(self, train_loader: DataLoader, val_loader: DataLoader, should_save: bool = True) -> Dict[str, List[float]]:
+        """Train the model and optionally save the best model.
+        
+        Args:
+            train_loader: DataLoader for training data
+            val_loader: DataLoader for validation data
+            should_save: Whether to save the best model based on validation accuracy
+            
+        Returns:
+            Dictionary containing training history
+        """
+        history = {
+            'train_losses': [],
+            'val_losses': [],
+            'train_accs': [],
+            'val_accs': []
+        }
+        
+        for epoch in range(conf.TRAIN['epochs']):
+            train_loss, train_acc = self.train_one_epoch(train_loader)
+            val_loss, val_acc = self.val_one_epoch(val_loader)
+            self.scheduler.step(val_loss)
+            self.early_stopping(val_loss)  # Early stopping based on validation loss
+            if self.early_stopping.early_stop:
+                print("Early stopping triggered")
+                break
+            
+            if should_save and val_acc > max(history['val_accs'], default=0):
+                self.model.save()
+            
+            history['train_losses'].append(train_loss)
+            history['val_losses'].append(val_loss)
+            history['train_accs'].append(train_acc)
+            history['val_accs'].append(val_acc)
+            
+            print(f'Epoch {epoch+1}/{conf.TRAIN["epochs"]}:')
+            print(f'Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.2f}%')
+            print(f'Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.2f}%')
+        
+        return history
+    
+    def predict(self, test_loader: DataLoader) -> Tuple[np.ndarray, np.ndarray]:
+        """Generate predictions and return them along with their indices."""
+        self.model.eval()
+        predictions = []
+        indices = []
+        
+        with torch.no_grad():
+            pbar = tqdm(test_loader, desc="Test Inference")
+            for inputs, idx in pbar:
+                inputs = inputs.to(self.device)
+                outputs = self.model(inputs)
+                _, preds = outputs.max(1)
+                predictions.extend(preds.cpu().numpy())
+                indices.extend(idx.cpu().numpy())
+        
+        return np.array(predictions), np.array(indices)
+    
+    def cross_validate(self, dataset: torch.utils.data.Dataset, k_folds: int = 5) -> List[Dict]:
+        kfold = KFold(n_splits=k_folds, shuffle=True)
+        fold_results = []
+        
+        for fold, (train_ids, val_ids) in enumerate(kfold.split(dataset)):
+            print(f'\nFOLD {fold+1}/{k_folds}')
+            print('--------------------------------')
+            
+            train_subsampler = Subset(dataset, train_ids)
+            val_subsampler = Subset(dataset, val_ids)
+            
+            train_loader = DataLoader(train_subsampler, shuffle=True, **conf.DATALOADER)
+            val_loader = DataLoader(val_subsampler, shuffle=False, **conf.DATALOADER)
+            
+            # Create new model for this fold
+            self.model = self.model.__class__()
+            self.model.to(self.device)
+            self.optimizer = optim.SGD(self.model.parameters(), **conf.OPTIMIZER)
+            self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
+            self.early_stopping = EarlyStopping(
+                patience=conf.TRAIN['early_stopping_patience'],
+                min_delta=conf.TRAIN['early_stopping_min_delta'],
+                verbose=True
+            )
+            
+            history = self.train(
+                train_loader=train_loader,
+                val_loader=val_loader,
+                should_save=False  # Don't save weights during cross-validation
+            )
+            
+            fold_results.append({
+                'fold': fold + 1,
+                'best_val_acc': max(history['val_accs']),
+                'history': history
+            })
+        
+        return fold_results 

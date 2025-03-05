@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from .base import BaseModel
 
 class FusedMBConv(nn.Module):
     def __init__(self, in_channels, out_channels, stride, expand_ratio):
@@ -27,7 +28,7 @@ class FusedMBConv(nn.Module):
         out += self.shortcut(x)
         return out
 
-class CustomEfficientNetV2_B0(nn.Module):
+class CustomEfficientNetV2_B0(BaseModel):
     def __init__(self, num_classes=10):
         super(CustomEfficientNetV2_B0, self).__init__()
         
@@ -72,4 +73,7 @@ class CustomEfficientNetV2_B0(nn.Module):
         out = torch.flatten(out, 1)
         out = self.dropout(out)
         out = self.fc(out)
-        return out 
+        return out
+        
+    def __str__(self):
+        return "efficientnet_v2_b0" 
