@@ -79,7 +79,7 @@ class CIFAR10TestDataset(Dataset):
         ])
         
         # Always apply base transforms
-        img = base_transform(img)
+        img = base_transform(pil_img)
         return img, idx
 
 class CIFAR10BenchmarkDataset(Dataset):
