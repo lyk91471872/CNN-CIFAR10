@@ -2,10 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
-import pickle
-import os
 import pandas as pd
-import numpy as np
 import argparse
 
 import config as conf
@@ -19,16 +16,17 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
     parser.add_argument('-t', '--train', action='store_true', help='Train the model on full dataset')
     parser.add_argument('-c', '--crossval', action='store_true', help='Run cross-validation')
-    parser.add_argument('-r', '--requirements', action='store_true', help='Check and install requirements')
     return parser.parse_args()
 
 def main():
-    """Main function to run the training pipeline."""
-    args = parse_args()
-    
-    if args.requirements:
+    """Main function to run the training or cross-validation."""
+    try:
         install_requirements()
+    except Exception as e:
+        print(f"Error installing requirements: {e}")
         return
+        
+    args = parse_args()
     
     if not (args.train or args.crossval):
         print("Please specify either -t (train) or -c (crossval) mode")
