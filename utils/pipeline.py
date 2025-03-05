@@ -22,7 +22,7 @@ class Pipeline:
         self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
         self.early_stopping = EarlyStopping(
             patience=conf.TRAIN['early_stopping_patience'],
-            min_delta=conf.TRAIN['early_stopping_min_delta'],
+            delta=conf.TRAIN['early_stopping_min_delta'],
             verbose=True
         )
     
@@ -188,7 +188,7 @@ class Pipeline:
             self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
             self.early_stopping = EarlyStopping(
                 patience=conf.TRAIN['early_stopping_patience'],
-                min_delta=conf.TRAIN['early_stopping_min_delta'],
+                delta=conf.TRAIN['early_stopping_min_delta'],
                 verbose=True
             )
             

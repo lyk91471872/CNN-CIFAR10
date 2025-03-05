@@ -53,7 +53,6 @@ SCHEDULER = {
     'mode': 'min',
     'factor': 0.1,
     'patience': 5,
-    'verbose': True,
     'min_lr': 1e-4
 }
 

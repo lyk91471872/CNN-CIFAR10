@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from config import TRAIN_DATA_PATHS, DATALOADER
-from dataset import CIFAR10Dataset
+from dataset import CIFAR10BenchmarkDataset
 
 NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
 BATCH_SIZE_LIST = [256, 512, 1024]
@@ -42,7 +42,7 @@ def run_grid_search(dataset):
 
 def main():
     print("Starting dataloader benchmark...")
-    dataset = CIFAR10Dataset(data_paths=TRAIN_DATA_PATHS)
+    dataset = CIFAR10BenchmarkDataset(data_paths=TRAIN_DATA_PATHS)
     results = run_grid_search(dataset)
     successful_results = [r for r in results if r[2] is not None]
     if successful_results:

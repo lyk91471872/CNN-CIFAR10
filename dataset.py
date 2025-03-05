@@ -5,6 +5,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 from config import TRANSFORM
+import torch
 
 def load_cifar_batch(file_path):
     """
@@ -81,3 +82,24 @@ class CIFAR10TestDataset(Dataset):
         # Always apply base transforms
         img = base_transform(img)
         return img, idx
+
+class CIFAR10BenchmarkDataset(Dataset):
+    """
+    Simplified CIFAR-10 dataset for benchmarking.
+    Returns raw data without any transformations.
+    """
+    def __init__(self, data_paths):
+        self.data = []
+        self.labels = []
+        for path in data_paths:
+            batch = load_cifar_batch(path)
+            self.data.append(batch[b'data'])
+            self.labels.extend(batch[b'labels'])
+        # Reshape data to (N, 3, 32, 32)
+        self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32)
+        
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, idx):
+        return torch.from_numpy(self.data[idx]).float(), self.labels[idx]
