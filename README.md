@@ -4,19 +4,44 @@ A PyTorch implementation of CNN models for CIFAR-10 image classification, with a
 
 ## Project Structure
 
-- `main.py`: Main training script
-- `config.py`: Global configuration settings
-- `dataset.py`: CIFAR-10 dataset implementation
-- `dataloader_benchmark.py`: Benchmark script for DataLoader performance
-- `requirements.txt`: Project dependencies
+```
+CNN-CIFAR10/
+├── config.py              # Global configuration settings
+├── dataset.py            # CIFAR-10 dataset implementation
+├── dataloader_benchmark.py # Benchmark script for DataLoader performance
+├── main.py               # Main training script
+├── models/               # Model architectures
+│   ├── __init__.py
+│   ├── base.py          # Base model class with save/load functionality
+│   ├── efficientnet.py  # EfficientNetV2-B0 implementation
+│   └── resnet.py        # ResNet18 implementation
+├── utils/               # Utility functions
+│   ├── __init__.py
+│   ├── augmentation.py  # Data augmentation utilities
+│   ├── early_stopping.py # Early stopping implementation
+│   ├── pipeline.py      # Training pipeline
+│   └── visualization.py # Training visualization utilities
+├── weights/             # Saved model weights
+└── graphs/             # Training visualization outputs
+```
 
 ## Features
 
 - Support for multiple CNN architectures (ResNet18, EfficientNetV2)
-- Automatic mixed precision training
-- Mixup data augmentation
-- Configurable DataLoader settings
-- Performance benchmarking tools
+- Data augmentation:
+  - Random horizontal flips
+  - Random rotations
+  - Color jittering
+  - Mixup augmentation
+- Training features:
+  - Cross-validation support
+  - Early stopping
+  - Learning rate scheduling
+  - Model checkpointing
+- Performance optimization:
+  - Efficient data loading with multiple workers
+  - DataLoader benchmarking tool
+  - GPU support with automatic device selection
 
 ## Setup
 
@@ -52,6 +77,7 @@ Key parameters can be modified in `config.py`:
 - Learning rate
 - Number of workers
 - Data augmentation settings
+- Training parameters (epochs, early stopping, etc.)
 
 ## License
 
