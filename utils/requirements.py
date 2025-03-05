@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import re
 
 def install_requirements():
     """Check and install required packages from requirements.txt silently."""
@@ -10,8 +11,10 @@ def install_requirements():
         raise Exception("requirements.txt not found")
     
     for package in required_packages:
+        # Extract package name without version specifier
+        package_name = re.split(r'[<>=~!]', package)[0].strip()
         try:
-            __import__(package.split('==')[0])  # Handle version specifiers
+            __import__(package_name)
         except ImportError:
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", package])
