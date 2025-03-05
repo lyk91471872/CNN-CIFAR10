@@ -1,3 +1,11 @@
+from utils.requirements import install_requirements
+
+try:
+    install_requirements()
+except Exception as e:
+    print(f"Error installing requirements: {e}")
+    exit(1)
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,7 +18,6 @@ from dataset import CIFAR10Dataset, CIFAR10TestDataset
 from models import CustomResNet18
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history
-from utils import install_requirements
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
@@ -20,12 +27,6 @@ def parse_args():
 
 def main():
     """Main function to run the training or cross-validation."""
-    try:
-        install_requirements()
-    except Exception as e:
-        print(f"Error installing requirements: {e}")
-        return
-        
     args = parse_args()
     
     if not (args.train or args.crossval):
