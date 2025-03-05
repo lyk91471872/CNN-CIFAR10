@@ -15,7 +15,7 @@ import argparse
 
 import config as conf
 from dataset import CIFAR10Dataset, CIFAR10TestDataset
-from models import CustomResNet18
+from models import CustomResNet18, CustomEfficientNetV2_B0
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history
 
@@ -34,7 +34,8 @@ def main():
         return
     
     dataset = CIFAR10Dataset(data_paths=conf.TRAIN_DATA_PATHS)
-    model = CustomResNet18()
+    # model = CustomResNet18()
+    model = CustomEfficientNetV2_B0()
     pipeline = Pipeline(model)
     
     if args.crossval:

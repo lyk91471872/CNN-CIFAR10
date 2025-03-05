@@ -6,10 +6,6 @@ from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
 import os
 
-# Create directories for saved files
-os.makedirs('weights', exist_ok=True)
-os.makedirs('graphs', exist_ok=True)
-
 # Data paths
 DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
 TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
@@ -18,6 +14,9 @@ TEST_DATA_PATH = 'data/cifar_test_nolabel.pkl'
 # Save paths
 WEIGHTS_DIR = 'weights'
 GRAPHS_DIR = 'graphs'
+os.makedirs(WEIGHTS_DIR, exist_ok=True)
+os.makedirs(GRAPHS_DIR, exist_ok=True)
+
 
 # Dataset parameters
 NUM_CLASSES = 10
@@ -28,7 +27,7 @@ CHANNELS = 3
 TRANSFORM = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
+    transforms.ColorJitter(brightness=0.3, contrast=0.2, saturation=0.2, hue=0.05)
 ])
 
 # DataLoader parameters
