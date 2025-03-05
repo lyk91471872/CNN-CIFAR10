@@ -4,7 +4,7 @@ import time
 import torch
 from torch.utils.data import DataLoader
 
-from config import TRAIN_DATA_PATHS, DATALOADER_KWARGS
+from config import TRAIN_DATA_PATHS, DATALOADER
 from dataset import CIFAR10Dataset
 
 NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
@@ -13,7 +13,7 @@ N_EPOCHS = 3
 
 def benchmark_dataloader(dataset, num_workers, batch_size):
     loader_kwargs = {
-        **DATALOADER_KWARGS,  # Copy all other specs
+        **DATALOADER,  # Copy all other specs
         'num_workers': num_workers,
         'batch_size': batch_size
     }
