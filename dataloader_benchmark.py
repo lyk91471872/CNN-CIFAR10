@@ -41,29 +41,20 @@ def run_grid_search(dataset):
     return results
 
 def main():
-    """Main function to run the benchmark."""
-    # Create dataset
+    print("Starting dataloader benchmark...")
     dataset = CIFAR10Dataset(data_paths=TRAIN_DATA_PATHS)
+    results = run_grid_search(dataset)
+    successful_results = [r for r in results if r[2] is not None]
+    if successful_results:
+        best_config = min(successful_results, key=lambda x: x[2])
+        print(f"\nBest Configuration: Workers={best_config[0]}, Batch={best_config[1]} -> Time: {best_config[2]:.2f}s")
+    else:
+        print("\nNo successful configurations found!")
     
-    # Create DataLoader with different worker counts
-    worker_counts = [0, 2, 4, 8, 16]
-    results = []
-    
-    for num_workers in worker_counts:
-        print(f"\nBenchmarking with {num_workers} workers...")
-        dataloader = DataLoader(
-            dataset,
-            num_workers=num_workers,
-            **DATALOADER
-        )
-        
-        # Run benchmark
-        avg_time = benchmark_dataloader(dataloader)
-        results.append((num_workers, avg_time))
-        print(f"Average time per batch: {avg_time:.3f} seconds")
-    
-    # Plot results
-    plot_benchmark_results(results)
+    np.savetxt("benchmark_results.csv", results, delimiter=",", fmt='%s', 
+               header="num_workers,batch_size,time_taken", 
+               comments="")
+    print("\nResults saved to benchmark_results.csv")
 
 if __name__ == "__main__":
     main()
