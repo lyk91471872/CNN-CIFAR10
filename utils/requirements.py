@@ -15,5 +15,5 @@ def install_requirements():
             __import__(package.split('==')[0])  # Handle version specifiers
         except ImportError:
             print(f"Installing {package}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", package])
             print(f"{package} installed successfully.") 

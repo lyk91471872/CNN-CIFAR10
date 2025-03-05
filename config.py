@@ -11,8 +11,9 @@ os.makedirs('weights', exist_ok=True)
 os.makedirs('graphs', exist_ok=True)
 
 # Data paths
-TRAIN_DATA_PATHS = [f'data_batch_{i}' for i in range(1, 6)]
-TEST_DATA_PATH = 'test_batch'
+DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
+TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
+TEST_DATA_PATH = os.path.join(DATA_DIR, 'test_batch')
 
 # Save paths
 WEIGHTS_DIR = 'weights'
