@@ -3,17 +3,88 @@ from torch.utils.data import DataLoader, random_split
 import pandas as pd
 import argparse
 import os
+import numpy as np
+import json
+import sqlite3
+from datetime import datetime
 
 import config as conf
 from dataset import create_dataset
 from utils.pipeline import Pipeline
-from utils.visualization import (
-    plot_training_history, 
-    plot_dataset_samples, 
-    plot_augmentation_comparison,
-    plot_samples_with_predictions
-)
-from utils.db import record_prediction, get_model_run_by_weights
+from utils.visualization import plot_training_history
+from utils.db import record_prediction, get_model_run_by_weights, init_db
+
+def record_crossval_results(model, fold_results, avg_history_path):
+    """Record cross-validation results in the database.
+    
+    Args:
+        model: The model instance
+        fold_results: List of dictionaries containing fold results
+        avg_history_path: Path to the saved average history plot
+    
+    Returns:
+        int: The ID of the inserted record
+    """
+    init_db()
+    conn = sqlite3.connect(conf.DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if cross_validation_results table exists, create if not
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS cross_validation_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_name TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        num_folds INTEGER NOT NULL,
+        avg_val_acc REAL NOT NULL,
+        std_val_acc REAL NOT NULL,
+        history_plot_path TEXT NOT NULL,
+        fold_details TEXT NOT NULL,
+        model_config TEXT NOT NULL
+    )
+    ''')
+    
+    # Extract relevant data
+    model_name = str(model.__class__.__name__)
+    timestamp = datetime.now().isoformat()
+    num_folds = len(fold_results)
+    
+    # Calculate statistics
+    best_val_accs = [result['best_val_acc'] for result in fold_results]
+    avg_val_acc = np.mean(best_val_accs)
+    std_val_acc = np.std(best_val_accs)
+    
+    # Model configuration
+    model_config = {
+        'model_name': model_name,
+        'model_params': model.get_config() if hasattr(model, 'get_config') else {},
+        'optimizer': conf.OPTIMIZER,
+        'dataloader': conf.DATALOADER,
+    }
+    
+    # Insert record
+    cursor.execute(
+        '''INSERT INTO cross_validation_results 
+           (model_name, timestamp, num_folds, avg_val_acc, std_val_acc, 
+            history_plot_path, fold_details, model_config) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (
+            model_name, 
+            timestamp, 
+            num_folds, 
+            float(avg_val_acc), 
+            float(std_val_acc), 
+            avg_history_path, 
+            json.dumps([{k: v for k, v in r.items() if k != 'history'} for r in fold_results], default=str),
+            json.dumps(model_config, default=str)
+        )
+    )
+    
+    run_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    
+    return run_id
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
@@ -75,9 +146,48 @@ def main():
         pipeline = Pipeline(model)
         
         fold_results = pipeline.cross_validate(dataset)
+        
+        # Display results for each fold
         print("\nCross-validation results:")
+        best_val_accs = []
         for result in fold_results:
             print(f"Fold {result['fold']}: Best validation accuracy = {result['best_val_acc']:.2f}%")
+            best_val_accs.append(result['best_val_acc'])
+        
+        # Calculate and display average performance
+        avg_val_acc = np.mean(best_val_accs)
+        std_val_acc = np.std(best_val_accs)
+        print(f"\nAverage validation accuracy: {avg_val_acc:.2f}% ± {std_val_acc:.2f}%")
+        
+        # Plot average training history
+        # Create averaged history
+        avg_history = {}
+        
+        # Check if all fold results have the same number of epochs
+        min_epochs = min(len(result['history']['train_losses']) for result in fold_results)
+        
+        # Initialize with empty lists
+        for key in fold_results[0]['history'].keys():
+            avg_history[key] = []
+        
+        # Compute average for each epoch across all folds
+        for epoch in range(min_epochs):
+            for key in avg_history.keys():
+                epoch_values = [result['history'][key][epoch] for result in fold_results]
+                avg_history[key].append(np.mean(epoch_values))
+                
+        # Plot the averaged history
+        history_path = os.path.join(conf.GRAPHS_DIR, 'crossval_history.png')
+        plot_training_history(avg_history, save_path=history_path)
+        print(f"Cross-validation history plot saved to {history_path}")
+        
+        # Record cross-validation results in the database
+        try:
+            run_id = record_crossval_results(model, fold_results, history_path)
+            print(f"Cross-validation results recorded in database with ID {run_id}")
+        except Exception as e:
+            print(f"Warning: Failed to record cross-validation results in database: {e}")
+        
         return
 
     # Handle training
@@ -92,26 +202,6 @@ def main():
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
         train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
         val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
-
-        # Visualize dataset samples before training
-        plot_dataset_samples(
-            train_loader, 
-            num_samples=16, 
-            title="CIFAR-10 Training Samples",
-            save_path=os.path.join(conf.GRAPHS_DIR, "training_samples.png")
-        )
-        
-        # For a batch to visualize augmentations
-        for batch in train_loader:
-            aug_images, clean_images, _ = batch
-            # Visualize augmentations
-            plot_augmentation_comparison(
-                clean_images, 
-                aug_images, 
-                num_samples=5,
-                save_path=os.path.join(conf.GRAPHS_DIR, "augmentation_examples.png")
-            )
-            break  # Just use the first batch
         
         # Train the model
         history = pipeline.train(
@@ -134,22 +224,6 @@ def main():
         submission = pd.DataFrame({'ID': indices, 'Label': predictions})
         submission.to_csv(prediction_file, index=False)
         print(f"\nTest predictions saved to {prediction_file}")
-        
-        # Visualize some predictions
-        test_viz_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
-        test_viz_loader = DataLoader(test_viz_dataset, shuffle=False, batch_size=64)
-        batch = next(iter(test_viz_loader))
-        images, batch_indices = batch
-        
-        # Get labels for the batch indices
-        batch_predictions = [predictions[indices.index(idx)] for idx in batch_indices.tolist() if idx in indices]
-        
-        # Visualize predictions
-        plot_samples_with_predictions(
-            images=images[:16], 
-            pred_labels=batch_predictions[:16],
-            save_path=os.path.join(conf.GRAPHS_DIR, "test_predictions.png")
-        )
         
         # Record the prediction in the database
         try:
