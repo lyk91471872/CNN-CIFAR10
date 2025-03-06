@@ -1,10 +1,15 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
-import os
+
+from models import CustomResNet18, CustomEfficientNetV2_B0
+
+# Model selection
+MODEL = CustomEfficientNetV2_B0
 
 # Data paths
 DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
@@ -27,7 +32,8 @@ CHANNELS = 3
 TRANSFORM = transforms.Compose([
     transforms.RandomHorizontalFlip(),
     transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.3, contrast=0.2, saturation=0.2, hue=0.05)
+    transforms.RandomCrop(32, padding=4),
+    transforms.ColorJitter(brightness=0.3, contrast=0.2, saturation=0.1, hue=0.05)
 ])
 
 # DataLoader parameters
@@ -61,4 +67,4 @@ TRAIN = {
     'early_stopping_min_delta': 0.001,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu'
-} 
+}

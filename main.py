@@ -28,23 +28,22 @@ def parse_args():
 def main():
     """Main function to run the training or cross-validation."""
     args = parse_args()
-    
+
     if not (args.train or args.crossval):
         print("Please specify either -t (train) or -c (crossval) mode")
         return
-    
+
     dataset = CIFAR10Dataset(data_paths=conf.TRAIN_DATA_PATHS)
-    # model = CustomResNet18()
-    model = CustomEfficientNetV2_B0()
+    model = conf.MODEL()
     pipeline = Pipeline(model)
-    
+
     if args.crossval:
         print("\nStarting cross-validation...")
         fold_results = pipeline.cross_validate(dataset)
         print("\nCross-validation results:")
         for result in fold_results:
             print(f"Fold {result['fold']}: Best validation accuracy = {result['best_val_acc']:.2f}%")
-    
+
     if args.train:
         print("\nTraining on full dataset...")
         train_size = int(0.9 * len(dataset))
@@ -52,19 +51,19 @@ def main():
         train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
         train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
         val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
-        
+
         history = pipeline.train(
             train_loader=train_loader,
             val_loader=val_loader
         )
         plot_training_history(history)
-        
+
         print("\nGenerating predictions...")
         model.load()
         test_dataset = CIFAR10TestDataset(conf.TEST_DATA_PATH)
         test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
         predictions, indices = pipeline.predict(test_loader)
-        
+
         submission = pd.DataFrame({'ID': indices, 'Label': predictions})
         submission.to_csv('prediction.csv', index=False)
         print("\nTest predictions saved to prediction.csv")
