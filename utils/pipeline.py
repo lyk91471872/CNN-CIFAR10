@@ -9,6 +9,7 @@ from tqdm import tqdm
 from typing import Dict, List, Tuple
 import pandas as pd
 import numpy as np
+import random
 
 import config as conf
 from .early_stopping import EarlyStopping
@@ -28,48 +29,66 @@ class Pipeline:
         )
         summary(self.model, (3, 32, 32))
 
-    def train_one_epoch(self, train_loader: DataLoader, optimizer: optim.Optimizer) -> Tuple[float, float]:
+    def train_one_epoch(self, train_loader: DataLoader, aug_prob: float) -> Tuple[float, float]:
         """Train for one epoch and return loss and accuracy."""
         self.model.train()
         train_loss = 0
         correct = 0
         total = 0
-
-        for aug_inputs, clean_inputs, targets in train_loader:
-            aug_inputs, targets = aug_inputs.to(self.device), targets.to(self.device)
-
-            # Mixup augmentation
-            if conf.TRAIN['mixup_alpha'] > 0:
-                aug_inputs, targets_a, targets_b, lam = mixup_data(
-                    aug_inputs, targets, conf.TRAIN['mixup_alpha']
-                )
-
-            optimizer.zero_grad()
-            outputs = self.model(aug_inputs)
-
-            # Calculate loss
-            if conf.TRAIN['mixup_alpha'] > 0:
-                loss = lam * self.criterion(outputs, targets_a) + (1 - lam) * self.criterion(outputs, targets_b)
+        
+        for inputs, _, targets in train_loader:
+            batch_size = inputs[0].size(0)
+            
+            # Decide whether to use augmentation for this batch
+            use_augmentation = random.random() < aug_prob
+            
+            if use_augmentation:
+                # Use augmented inputs and apply mixup
+                aug_inputs = inputs[0].to(conf.TRAIN['device'])
+                inputs = aug_inputs
+                
+                # Apply mixup with probability
+                if conf.TRAIN['mixup_alpha'] > 0:
+                    inputs, targets_a, targets_b, lam = mixup_data(
+                        inputs, 
+                        targets.to(conf.TRAIN['device']), 
+                        conf.TRAIN['mixup_alpha']
+                    )
+                    targets_a = targets_a.to(conf.TRAIN['device'])
+                    targets_b = targets_b.to(conf.TRAIN['device'])
+                else:
+                    targets = targets.to(conf.TRAIN['device'])
+            else:
+                # Use clean inputs without mixup
+                clean_inputs = inputs[1].to(conf.TRAIN['device'])
+                inputs = clean_inputs
+                targets = targets.to(conf.TRAIN['device'])
+            
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            
+            if use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                loss = self.criterion(outputs, targets_a) * lam + self.criterion(outputs, targets_b) * (1 - lam)
             else:
                 loss = self.criterion(outputs, targets)
-
+            
             loss.backward()
-            optimizer.step()
-
+            self.optimizer.step()
+            
             train_loss += loss.item()
             _, predicted = outputs.max(1)
-            total += targets.size(0)
-
-            if conf.TRAIN['mixup_alpha'] > 0:
-                # Weighted accuracy based on label proportions
-                correct += (lam * predicted.eq(targets_a).float() + 
-                          (1 - lam) * predicted.eq(targets_b).float()).sum().item()
+            total += targets.size(0) if not use_augmentation or conf.TRAIN['mixup_alpha'] <= 0 else targets_a.size(0)
+            
+            if use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                # For mixup, we need to compute accuracy differently
+                correct += (lam * predicted.eq(targets_a).sum().item() + 
+                           (1 - lam) * predicted.eq(targets_b).sum().item())
             else:
                 correct += predicted.eq(targets).sum().item()
-
+        
         train_loss = train_loss / len(train_loader)
-        train_acc = 100. * correct / total
-        return train_loss, train_acc
+        accuracy = 100. * correct / total
+        return train_loss, accuracy
 
     def val_one_epoch(self, val_loader: DataLoader) -> Tuple[float, float]:
         """Validate for one epoch and return loss and accuracy."""
@@ -93,77 +112,71 @@ class Pipeline:
         val_acc = 100. * correct / total
         return val_loss, val_acc
 
-    def train(self, train_loader, val_loader, epochs=None, optimizer=None, scheduler=None):
-        """Train the model on the provided data loaders."""
-        epochs = epochs or conf.TRAIN['epochs']
-        optimizer = optimizer or self._create_optimizer()
-        scheduler = scheduler or self._create_scheduler(optimizer)
-        
-        early_stopping = EarlyStopping(
-            patience=conf.TRAIN['early_stopping_patience'],
-            min_delta=conf.TRAIN['early_stopping_min_delta']
-        )
-        
+    def train(self, train_loader: DataLoader, val_loader: DataLoader, should_save: bool = True) -> Dict[str, List[float]]:
+        """Train the model and optionally save the best model.
+
+        Args:
+            train_loader: DataLoader for training data
+            val_loader: DataLoader for validation data
+            should_save: Whether to save the best model based on validation loss
+
+        Returns:
+            Dictionary containing training history
+        """
         history = {
-            'train_loss': [],
-            'train_acc': [],
-            'val_loss': [],
-            'val_acc': []
+            'train_losses': [],
+            'val_losses': [],
+            'train_accs': [],
+            'val_accs': []
         }
+
+        best_val_loss = float('inf')
+        pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
         
-        # Get dataset from train_loader to update augmentation probability
-        dataset = train_loader.dataset
-        if hasattr(dataset, 'update_augmentation_prob'):
-            # For DataLoader with Subset, get the original dataset
-            if isinstance(dataset, torch.utils.data.Subset):
-                orig_dataset = dataset.dataset
-                if hasattr(orig_dataset, 'update_augmentation_prob'):
-                    dataset = orig_dataset
-        
-        # Progress bar for epochs
-        pbar = tqdm(range(epochs), desc="Training")
+        # Progressive learning settings
+        prog_learning = conf.TRAIN.get('progressive_learning', False)
+        start_prob = conf.TRAIN.get('aug_start_prob', 0.0)
+        end_prob = conf.TRAIN.get('aug_end_prob', 1.0)
+        ramp_epochs = conf.TRAIN.get('aug_ramp_epochs', 20)
         
         for epoch in pbar:
-            # Update augmentation probability if dataset supports it
-            if hasattr(dataset, 'update_augmentation_prob'):
-                dataset.update_augmentation_prob(epoch, conf.PROGRESSIVE_LEARNING)
-                aug_prob = dataset.augmentation_prob
+            # Calculate current augmentation probability
+            if prog_learning:
+                if epoch >= ramp_epochs:
+                    aug_prob = end_prob
+                else:
+                    aug_prob = start_prob + (end_prob - start_prob) * (epoch / ramp_epochs)
             else:
-                aug_prob = 1.0  # Default to full augmentation
+                aug_prob = 1.0  # Always use augmentation if progressive learning is disabled
                 
-            # Train for one epoch
-            train_loss, train_acc = self.train_one_epoch(train_loader, optimizer)
+            # Train for one epoch with augmentation probability
+            train_loss, train_acc = self.train_one_epoch(train_loader, aug_prob)
             
-            # Validate
             val_loss, val_acc = self.val_one_epoch(val_loader)
-            
-            # Update learning rate
-            if scheduler:
-                scheduler.step(val_loss)
-            
-            # Update history
-            history['train_loss'].append(train_loss)
-            history['train_acc'].append(train_acc)
-            history['val_loss'].append(val_loss)
-            history['val_acc'].append(val_acc)
-            
-            # Update progress bar
-            pbar.set_postfix({
-                'train_loss': f"{train_loss:.4f}", 
-                'train_acc': f"{train_acc:.2f}%", 
-                'val_loss': f"{val_loss:.4f}", 
-                'val_acc': f"{val_acc:.2f}%",
-                'aug_prob': f"{aug_prob:.2f}"
-            })
-            
-            # Check early stopping
-            if early_stopping(val_loss):
-                print(f"Early stopping triggered")
+            self.scheduler.step(val_loss)
+            self.early_stopping(val_loss)  # Early stopping based on validation loss
+            if self.early_stopping.early_stop:
+                print("Early stopping triggered")
                 break
-                
-            # Save model if validation loss improved
-            if early_stopping.is_best():
+
+            if should_save and val_loss < best_val_loss:
+                best_val_loss = val_loss
                 self.model.save()
+
+            history['train_losses'].append(train_loss)
+            history['val_losses'].append(val_loss)
+            history['train_accs'].append(train_acc)
+            history['val_accs'].append(val_acc)
+
+            pbar.set_postfix({
+                'tr_loss': f'{train_loss:.2f}',
+                'tr_acc': f'{train_acc:.2f}%',
+                'val_loss': f'{val_loss:.2f}',
+                'val_acc': f'{val_acc:.2f}%',
+                'aug_prob': f'{aug_prob:.2f}'
+            })
+
+        return history
 
     def predict(self, test_loader: DataLoader) -> Tuple[np.ndarray, np.ndarray]:
         """Generate predictions and return them along with their indices."""

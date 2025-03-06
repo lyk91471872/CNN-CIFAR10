@@ -40,14 +40,6 @@ TRANSFORM = transforms.Compose([
     transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
 ])
 
-# Progressive learning configuration
-PROGRESSIVE_LEARNING = {
-    'enabled': True,
-    'start_prob': 0.0,  # Starting probability of applying augmentations
-    'end_prob': 1.0,    # Final probability of applying augmentations
-    'ramp_epochs': 20   # Number of epochs to linearly increase from start_prob to end_prob
-}
-
 # DataLoader parameters
 DATALOADER = {
     'batch_size': 512,
@@ -78,5 +70,10 @@ TRAIN = {
     'early_stopping_patience': 10,
     'early_stopping_min_delta': 0.001,
     'mixup_alpha': 0.2,
-    'device': 'cuda' if torch.cuda.is_available() else 'cpu'
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+    # Progressive learning parameters
+    'progressive_learning': True,
+    'aug_start_prob': 0.0,     # Starting probability of augmentation
+    'aug_end_prob': 1.0,       # Final probability of augmentation
+    'aug_ramp_epochs': 20      # Number of epochs to reach full augmentation
 }

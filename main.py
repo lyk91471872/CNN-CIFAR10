@@ -12,7 +12,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 import pandas as pd
 import argparse
-from torchvision import transforms
 
 import config as conf
 from dataset import CIFAR10Dataset, CIFAR10TestDataset
@@ -34,21 +33,8 @@ def main():
         print("Please specify either -t (train) or -c (crossval) mode")
         return
 
-    # Create base transform for normalization
-    base_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-    
-    # Initialize dataset with transforms and initial augmentation probability of 0
-    dataset = CIFAR10Dataset(
-        data_paths=conf.TRAIN_DATA_PATHS,
-        transform=conf.TRANSFORM,
-        base_transform=base_transform,
-        augmentation_prob=0.0  # Start with no augmentation
-    )
-    
-    model = CustomResNet18()
+    dataset = CIFAR10Dataset(data_paths=conf.TRAIN_DATA_PATHS)
+    model = conf.MODEL()
     pipeline = Pipeline(model)
 
     if args.crossval:
