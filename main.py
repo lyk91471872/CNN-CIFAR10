@@ -5,7 +5,7 @@ import argparse
 import os
 
 import config as conf
-from dataset import CIFAR10Dataset, CIFAR10TestDataset, CIFAR10TestDatasetRaw
+from dataset import create_dataset
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history
 from utils.db import record_prediction, get_model_run_by_weights
@@ -29,7 +29,7 @@ def main():
 
     if args.train or args.crossval:
         # Original training/cross-validation code
-        dataset = CIFAR10Dataset(data_paths=conf.TRAIN_DATA_PATHS)
+        dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training')
         model = conf.get_model()()  # Get the model class and instantiate it
         pipeline = Pipeline(model)
 
@@ -58,7 +58,7 @@ def main():
             # Load the best model
             model.load()
             
-            test_dataset = CIFAR10TestDataset(conf.TEST_DATA_PATH, transform=conf.BASE_TRANSFORM)
+            test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
             test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
             predictions, indices = pipeline.predict(test_loader)
 
@@ -89,7 +89,7 @@ def main():
             from scripts.testset2pdf import testset_to_pdf
             
             output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images_raw.pdf")
-            test_dataset = CIFAR10TestDatasetRaw(conf.TEST_DATA_PATH)
+            test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test', raw=True)
             testset_to_pdf(test_dataset, output_pdf_path, use_grayscale=False)
             
             print(f"PDF generated successfully: {output_pdf_path}")

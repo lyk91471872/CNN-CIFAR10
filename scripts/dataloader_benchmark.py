@@ -7,7 +7,7 @@ import os
 
 # Import from project root
 from config import TRAIN_DATA_PATHS, DATALOADER, SCRIPTS_OUTPUT_DIR
-from dataset import CIFAR10BenchmarkDataset
+from dataset import create_dataset
 
 NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
 BATCH_SIZE_LIST = [256, 512, 1024]
@@ -44,7 +44,7 @@ def run_grid_search(dataset):
 
 def main():
     print("Starting dataloader benchmark...")
-    dataset = CIFAR10BenchmarkDataset(data_paths=TRAIN_DATA_PATHS)
+    dataset = create_dataset(data_source=TRAIN_DATA_PATHS, mode='benchmark')
     results = run_grid_search(dataset)
     successful_results = [r for r in results if r[2] is not None]
     if successful_results:

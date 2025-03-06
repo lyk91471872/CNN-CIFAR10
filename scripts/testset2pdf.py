@@ -4,14 +4,14 @@ from tqdm import tqdm
 
 # Import from project root
 import config as conf
-from dataset import CIFAR10TestDatasetRaw
+from dataset import create_dataset
 
 def testset_to_pdf(dataset, output_pdf, use_grayscale=False):
     """
-    Exports images from CIFAR10TestDataset directly to a PDF file without saving individual PNG files.
+    Exports images from CIFAR10 test dataset directly to a PDF file without saving individual PNG files.
 
     Parameters:
-        dataset: an instance of CIFAR10TestDatasetRaw
+        dataset: a CIFAR10 dataset instance in raw mode
         output_pdf (str): the PDF file path where images will be saved
         use_grayscale (bool): whether to convert images to grayscale
     """
@@ -97,5 +97,5 @@ def testset_to_pdf(dataset, output_pdf, use_grayscale=False):
 if __name__ == '__main__':
     output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images_raw.pdf")
     # Set use_grayscale to True if you want to convert images to grayscale and use magenta for the ID
-    test_dataset = CIFAR10TestDatasetRaw(conf.TEST_DATA_PATH)
+    test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test', raw=True)
     testset_to_pdf(test_dataset, output_pdf_path, use_grayscale=False) 

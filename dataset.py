@@ -14,6 +14,47 @@ def load_cifar_batch(file_path):
         batch = pickle.load(f, encoding='bytes')
     return batch
 
+def create_dataset(data_source, mode='training', transform=None, raw=False):
+    """
+    Factory function that creates and returns the appropriate CIFAR-10 dataset.
+    
+    Args:
+        data_source: Either a list of file paths (training) or a single path (test).
+        mode: 'training', 'test', or 'benchmark'
+        transform: Transform to apply (uses defaults if None)
+        raw: If True, returns raw PIL images without transformation
+    
+    Returns:
+        A configured CIFAR10Dataset instance
+    """
+    # Configure dataset based on mode and parameters
+    if mode == 'training':
+        return CIFAR10Dataset(
+            data_source=data_source,
+            mode=mode,
+            transform=transform,
+            return_labels=True,
+            return_indices=False
+        )
+    elif mode == 'test':
+        return CIFAR10Dataset(
+            data_source=data_source,
+            mode='test' if not raw else 'raw',
+            transform=transform if not raw else None,
+            return_labels=False,
+            return_indices=True
+        )
+    elif mode == 'benchmark':
+        return CIFAR10Dataset(
+            data_source=data_source,
+            mode=mode,
+            transform=transform,
+            return_labels=True,
+            return_indices=False
+        )
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
 class CIFAR10Dataset(Dataset):
     """
     Flexible CIFAR-10 dataset that can handle both training and test data.
@@ -138,16 +179,15 @@ class CIFAR10Dataset(Dataset):
         # Build and return final result
         return self._build_result(idx, processed_imgs)
 
-# Compatibility wrappers for existing code
+# Backward compatibility wrappers
 def CIFAR10TestDataset(file_path, transform=BASE_TRANSFORM):
     """Compatibility wrapper for test dataset."""
-    return CIFAR10Dataset(file_path, mode='test', transform=transform, 
-                          return_labels=False, return_indices=True)
+    return create_dataset(file_path, mode='test', transform=transform)
 
 def CIFAR10BenchmarkDataset(data_paths, transform=BASE_TRANSFORM):
     """Compatibility wrapper for benchmark dataset."""
-    return CIFAR10Dataset(data_paths, mode='benchmark', transform=transform)
+    return create_dataset(data_paths, mode='benchmark', transform=transform)
 
 def CIFAR10TestDatasetRaw(file_path):
     """Compatibility wrapper for raw test dataset."""
-    return CIFAR10Dataset(file_path, mode='raw', return_labels=False, return_indices=True)
+    return create_dataset(file_path, mode='test', raw=True)
