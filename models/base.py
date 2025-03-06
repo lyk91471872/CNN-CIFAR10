@@ -2,10 +2,6 @@ import torch
 from torch import nn
 import os
 import config as conf
-import sys
-
-# Add project root to path to import utils.db
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db import record_model_run, get_model_run_by_weights
 
 class BaseModel(nn.Module):

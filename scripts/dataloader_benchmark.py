@@ -3,10 +3,9 @@ import numpy as np
 import time
 import torch
 from torch.utils.data import DataLoader
-import sys
 import os
 
-sys.path.append('..')  # Add project root to path
+# Import from project root
 from config import TRAIN_DATA_PATHS, DATALOADER, SCRIPTS_OUTPUT_DIR
 from dataset import CIFAR10BenchmarkDataset
 

@@ -1,28 +1,42 @@
 # CNN-CIFAR10
 
-A PyTorch implementation of CNN models for CIFAR-10 image classification, with a focus on efficient data loading and training.
+A PyTorch implementation of Convolutional Neural Networks for the CIFAR-10 dataset.
+
+## Installation
+
+To install the package in development mode:
+
+```bash
+pip install -e .
+```
 
 ## Project Structure
 
 ```
 CNN-CIFAR10/
-├── config.py              # Global configuration settings
-├── dataset.py            # CIFAR-10 dataset implementation
-├── dataloader_benchmark.py # Benchmark script for DataLoader performance
-├── main.py               # Main training script
-├── models/               # Model architectures
-│   ├── __init__.py
-│   ├── base.py          # Base model class with save/load functionality
-│   ├── efficientnet.py  # EfficientNetV2-B0 implementation
-│   └── resnet.py        # ResNet18 implementation
-├── utils/               # Utility functions
-│   ├── __init__.py
-│   ├── augmentation.py  # Data augmentation utilities
-│   ├── early_stopping.py # Early stopping implementation
-│   ├── pipeline.py      # Training pipeline
-│   └── visualization.py # Training visualization utilities
-├── weights/             # Saved model weights
-└── graphs/             # Training visualization outputs
+├── __init__.py           # Root package initialization
+├── config.py             # Global configuration settings
+├── dataset.py            # Dataset classes for CIFAR-10
+├── main.py               # Main script for training and prediction
+├── models/               # Model definitions
+│   ├── __init__.py       # Models package initialization
+│   ├── base.py           # Base model class
+│   ├── resnet.py         # ResNet-18 implementation
+│   └── efficientnet.py   # EfficientNet implementation
+├── scripts/              # Utility scripts
+│   ├── __init__.py       # Scripts package initialization
+│   ├── dataloader_benchmark.py  # Benchmark dataloader performance
+│   ├── outputs/          # Directory for script outputs
+│   └── testset2pdf.py    # Export test set images to PDF
+├── utils/                # Utility modules
+│   ├── __init__.py       # Utils package initialization
+│   ├── augmentation.py   # Data augmentation utilities
+│   ├── db.py             # Database utilities
+│   ├── pipeline.py       # Training and evaluation pipeline
+│   └── visualization.py  # Visualization utilities
+├── weights/              # Model weights
+├── graphs/               # Training graphs
+└── predictions/          # Model predictions
 ```
 
 ## Features
@@ -57,16 +71,26 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Training
+### Training a model
 
 ```bash
-python main.py
+python main.py -t
 ```
 
-### DataLoader Benchmarking
+### Cross-validation
 
 ```bash
-python dataloader_benchmark.py
+python main.py -c
+```
+
+### Running scripts
+
+```bash
+# Run dataloader benchmark
+python scripts/dataloader_benchmark.py
+
+# Generate test set PDF
+python scripts/testset2pdf.py
 ```
 
 ## Configuration
@@ -82,3 +106,12 @@ Key parameters can be modified in `config.py`:
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Database
+
+The project includes a SQLite database (`models.db`) that tracks relationships between:
+- Model weights
+- Prediction files
+- Configuration settings
+
+This allows for easy retrieval of which model produced which predictions.

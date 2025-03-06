@@ -5,8 +5,7 @@ import torchvision.transforms as transforms
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 
-import sys
-sys.path.append('..')  # Add project root to path
+# Import from project root
 import config as conf
 from dataset import CIFAR10TestDataset
 

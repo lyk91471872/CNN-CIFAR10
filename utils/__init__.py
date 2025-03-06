@@ -8,4 +8,7 @@ __all__ = [
     'EarlyStopping',
     'mixup_data',
     'plot_training_history'
-] 
+]
+
+# Utils package
+# This file makes the directory a proper Python package 

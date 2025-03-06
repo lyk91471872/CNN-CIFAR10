@@ -3,8 +3,8 @@ import sqlite3
 import json
 from datetime import datetime
 
-# Get the project root directory
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+# Get the project root directory using package-relative paths
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(ROOT_DIR, 'models.db')
 
 def init_db():
