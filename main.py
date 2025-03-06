@@ -11,7 +11,7 @@ from datetime import datetime
 import config as conf
 from dataset import create_dataset
 from utils.pipeline import Pipeline
-from utils.visualization import plot_training_history
+from utils.visualization import plot_training_history, plot_crossval_history
 from utils.db import record_prediction, get_model_run_by_weights, init_db
 
 def record_crossval_results(model, fold_results, avg_history_path):
@@ -159,27 +159,9 @@ def main():
         std_val_acc = np.std(best_val_accs)
         print(f"\nAverage validation accuracy: {avg_val_acc:.2f}% ± {std_val_acc:.2f}%")
         
-        # Plot average training history
-        # Create averaged history
-        avg_history = {}
-        
-        # Check if all fold results have the same number of epochs
-        min_epochs = min(len(result['history']['train_losses']) for result in fold_results)
-        
-        # Initialize with empty lists
-        for key in fold_results[0]['history'].keys():
-            avg_history[key] = []
-        
-        # Compute average for each epoch across all folds
-        for epoch in range(min_epochs):
-            for key in avg_history.keys():
-                epoch_values = [result['history'][key][epoch] for result in fold_results]
-                avg_history[key].append(np.mean(epoch_values))
-                
-        # Plot the averaged history
+        # Plot average training history using the visualization module
         history_path = os.path.join(conf.GRAPHS_DIR, 'crossval_history.png')
-        plot_training_history(avg_history, save_path=history_path)
-        print(f"Cross-validation history plot saved to {history_path}")
+        avg_history = plot_crossval_history(fold_results, save_path=history_path)
         
         # Record cross-validation results in the database
         try:
