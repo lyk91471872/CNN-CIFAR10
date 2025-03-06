@@ -29,12 +29,24 @@ IMAGE_SIZE = 32
 CHANNELS = 3
 
 # Augmentation transforms applied only to training data
+# TRANSFORM = transforms.Compose([
+#     transforms.RandomHorizontalFlip(),
+#     transforms.RandomRotation(10),
+#     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
+# ])
+
+# Use AutoAugment for CIFAR10
 TRANSFORM = transforms.Compose([
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),
-    transforms.RandomCrop(32, padding=4),
-    transforms.ColorJitter(brightness=0.3, contrast=0.2, saturation=0.1, hue=0.05)
+    transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
 ])
+
+# Progressive learning configuration
+PROGRESSIVE_LEARNING = {
+    'enabled': True,
+    'start_prob': 0.0,  # Starting probability of applying augmentations
+    'end_prob': 1.0,    # Final probability of applying augmentations
+    'ramp_epochs': 20   # Number of epochs to linearly increase from start_prob to end_prob
+}
 
 # DataLoader parameters
 DATALOADER = {
