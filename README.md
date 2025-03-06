@@ -10,20 +10,19 @@ A PyTorch implementation of Convolutional Neural Networks for the CIFAR-10 datas
   - Extensible base model for adding new architectures
 
 - **Advanced Training Capabilities**
-  - Cross-validation support
+  - Cross-validation support with averaged metrics visualization
   - Early stopping to prevent overfitting
   - Learning rate scheduling
   - Mixup augmentation for better generalization
-  - Progressive learning with increasing augmentation probability
 
 - **Data Management**
   - Efficient data loading with optimized DataLoader
-  - Comprehensive data augmentation pipeline
-  - Support for both training and test datasets
+  - Comprehensive data augmentation pipeline with AutoAugment
+  - Unified dataset interface with configurable modes
   - Benchmark tools for DataLoader performance optimization
 
 - **Experiment Tracking**
-  - SQLite database for tracking model runs and predictions
+  - SQLite database for tracking model runs, cross-validation results, and predictions
   - Automatic model versioning with timestamps
   - Training history visualization
   - Relationship tracking between models and predictions
@@ -31,6 +30,7 @@ A PyTorch implementation of Convolutional Neural Networks for the CIFAR-10 datas
 - **Utility Scripts**
   - DataLoader benchmarking for performance optimization
   - Test set visualization with PDF export
+  - Normalization value computation and config updates
   - Organized outputs for all scripts
 
 ## Project Structure
@@ -50,7 +50,8 @@ CNN-CIFAR10/
 │   ├── __init__.py       # Scripts package initialization
 │   ├── dataloader_benchmark.py  # Benchmark dataloader performance
 │   ├── outputs/          # Directory for script outputs
-│   └── testset2pdf.py    # Export test set images to PDF
+│   ├── testset2pdf.py    # Export test set images to PDF
+│   └── update_normalization_values.py # Update normalization values in config
 ├── utils/                # Utility modules
 │   ├── __init__.py       # Utils package initialization
 │   ├── augmentation.py   # Data augmentation utilities
@@ -88,6 +89,18 @@ This will automatically install all dependencies from `requirements.txt`.
 
 ## Usage
 
+### Command-Line Options
+
+The main.py script provides several operation modes through command-line arguments:
+
+| Option | Description |
+|--------|-------------|
+| `-t, --train` | Train the model on full dataset |
+| `-c, --crossval` | Run cross-validation |
+| `-p, --pdf` | Generate PDF of test images |
+| `-d, --benchmark` | Run dataloader benchmark |
+| `-n, --normalize` | Update normalization values |
+
 ### Training a Model
 
 To train a model on the full dataset:
@@ -103,6 +116,7 @@ This will:
 - Save the best model weights
 - Generate a timestamped prediction file
 - Record the model and prediction in the database
+- Create a training history visualization
 
 ### Cross-validation
 
@@ -116,63 +130,49 @@ This will:
 - Split the dataset into k folds (default: 5)
 - Train and evaluate the model on each fold
 - Report the average performance across all folds
+- Generate an averaged training history plot
+- Record detailed cross-validation results in the database
 
-### Running Utility Scripts
+### Generating a PDF of Test Images
 
-#### DataLoader Benchmark
-
-To find the optimal DataLoader configuration:
-
-```bash
-python scripts/dataloader_benchmark.py
-```
-
-This will test various combinations of batch sizes and worker counts to find the most efficient configuration for your hardware.
-
-#### Test Set Visualization
-
-To generate a PDF of the test set images:
+To visualize the test dataset:
 
 ```bash
-python scripts/testset2pdf.py
+python main.py -p
 ```
 
 This will create a PDF with all test images, organized in a grid with their IDs.
 
+### Benchmarking the DataLoader
+
+To find the optimal DataLoader configuration:
+
+```bash
+python main.py -d
+```
+
+This will test various combinations of batch sizes and worker counts to find the most efficient configuration for your hardware.
+
+### Updating Normalization Values
+
+To compute and update normalization values in config.py:
+
+```bash
+python main.py -n
+```
+
+This calculates the mean and standard deviation from the training dataset and updates the normalization values in the configuration.
+
 ## Configuration
 
-All configuration options are centralized in `config.py`:
+All configuration options are centralized in `config.py`, including:
 
-### Model Selection
-```python
-MODEL = CustomEfficientNetV2_B0  # or CustomResNet18
-```
-
-### Training Parameters
-```python
-TRAIN = {
-    'epochs': 100,
-    'early_stopping_patience': 10,
-    'mixup_alpha': 0.2,
-    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-}
-```
-
-### Data Augmentation
-```python
-TRANSFORM = transforms.Compose([
-    transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
-])
-```
-
-### DataLoader Settings
-```python
-DATALOADER = {
-    'batch_size': 512,
-    'num_workers': 32,
-    'pin_memory': True,
-}
-```
+- Model selection
+- DataLoader parameters
+- Optimizer settings
+- Normalization values
+- Transform configurations
+- Directory paths
 
 ## Database
 
@@ -184,34 +184,21 @@ The project includes a SQLite database (`models.db`) that tracks:
    - Timestamp
    - Configuration used
 
-2. **Predictions**
+2. **Cross-validation Results**
+   - Model type
+   - Number of folds
+   - Average validation accuracy and standard deviation
+   - Path to the averaged history plot
+   - Detailed fold results
+   - Timestamp
+
+3. **Predictions**
    - Link to the model run
    - Prediction file path
    - Timestamp
 
-This allows for easy tracking of which model produced which predictions and under what configuration.
-
-## Progressive Learning
-
-The project supports progressive learning, where data augmentation probability increases over time:
-
-```python
-# In config.py
-TRAIN = {
-    # ...
-    'progressive_learning': True,
-    'aug_start_prob': 0.0,  # Starting probability
-    'aug_end_prob': 1.0,    # Ending probability
-    'aug_ramp_epochs': 20,  # Epochs to ramp up
-}
-```
-
-This gradually introduces augmentation, allowing the model to learn from clean data first before adapting to augmented examples.
+This allows for comprehensive tracking of experiments, providing a history of which models performed best and under what configurations.
 
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
