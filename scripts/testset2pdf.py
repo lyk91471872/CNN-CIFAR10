@@ -1,35 +1,10 @@
 import os
-import io
-import torch
-import torchvision.transforms as transforms
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
-import numpy as np
-import pickle
 
 # Import from project root
 import config as conf
-from dataset import load_cifar_batch
-from torch.utils.data import Dataset
-
-class CIFAR10TestDatasetRaw(Dataset):
-    """
-    CIFAR-10 test dataset that returns raw images without normalization.
-    
-    Returns a tuple (raw_image, index) where raw_image is a PIL Image.
-    """
-    def __init__(self, file_path):
-        batch = load_cifar_batch(file_path)
-        self.data = batch[b'data']  # Do not reshape, it is already (N, 32, 32, 3)
-        
-    def __len__(self):
-        return len(self.data)
-    
-    def __getitem__(self, idx):
-        img = self.data[idx]
-        # Convert to PIL Image directly without normalization
-        pil_img = Image.fromarray(img)
-        return pil_img, idx
+from dataset import CIFAR10TestDatasetRaw
 
 def testset_to_pdf(dataset, output_pdf, use_grayscale=False):
     """

@@ -1,17 +1,11 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 import pandas as pd
 import argparse
 import os
-import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
-import importlib
-import sys
 
 import config as conf
-from dataset import CIFAR10Dataset, CIFAR10TestDataset
+from dataset import CIFAR10Dataset, CIFAR10TestDataset, CIFAR10TestDatasetRaw
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history
 from utils.db import record_prediction, get_model_run_by_weights
@@ -64,7 +58,7 @@ def main():
             # Load the best model
             model.load()
             
-            test_dataset = CIFAR10TestDataset(conf.TEST_DATA_PATH)
+            test_dataset = CIFAR10TestDataset(conf.TEST_DATA_PATH, transform=conf.BASE_TRANSFORM)
             test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
             predictions, indices = pipeline.predict(test_loader)
 
@@ -92,7 +86,7 @@ def main():
         # Import and run testset2pdf.py
         print("\nGenerating PDF of test images...")
         try:
-            from scripts.testset2pdf import CIFAR10TestDatasetRaw, testset_to_pdf
+            from scripts.testset2pdf import testset_to_pdf
             
             output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images_raw.pdf")
             test_dataset = CIFAR10TestDatasetRaw(conf.TEST_DATA_PATH)
