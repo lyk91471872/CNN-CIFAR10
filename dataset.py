@@ -40,26 +40,30 @@ class CIFAR10Dataset(Dataset):
         self.return_labels = return_labels
         self.return_indices = return_indices
         
-        # Set defaults based on mode
-        if mode == 'training':
-            self.aug_transform = transform or TRANSFORM
-            self.base_transform = BASE_TRANSFORM
-        elif mode == 'test':
-            self.transform = transform or BASE_TRANSFORM
-        elif mode == 'benchmark':
-            self.transform = transform or BASE_TRANSFORM
-        # For 'raw' mode, no transform is applied by default
+        # Configure transformations based on mode
+        self._configure_transforms(transform)
         
         # Load the data
         self.data = []
         self.labels = []
+        self._load_data(data_source)
+            
+    def _configure_transforms(self, transform):
+        """Configure transforms based on the dataset mode."""
+        if self.mode == 'training':
+            self.aug_transform = transform or TRANSFORM
+            self.base_transform = BASE_TRANSFORM
+        elif self.mode in ('test', 'benchmark'):
+            self.transform = transform or BASE_TRANSFORM
+        # For 'raw' mode, no transform is needed
         
-        # Handle either a list of paths or a single path
+    def _load_data(self, data_source):
+        """Load data from source, handling both training and test data."""
         if isinstance(data_source, list):
             self._load_training_data(data_source)
         else:
             self._load_test_data(data_source)
-            
+        
     def _load_training_data(self, data_paths):
         """Load multiple training batches."""
         for path in data_paths:
@@ -81,39 +85,58 @@ class CIFAR10Dataset(Dataset):
     def __len__(self):
         return len(self.data)
     
-    def __getitem__(self, idx):
+    def _get_pil_image(self, idx):
+        """Convert raw data to PIL Image."""
         img = self.data[idx]
-        pil_img = Image.fromarray(img)
+        return Image.fromarray(img)
+    
+    def _process_training_mode(self, pil_img):
+        """Process image for training mode, returning (augmented, clean)."""
+        clean_img = self.base_transform(pil_img)
+        aug_img = self.base_transform(self.aug_transform(pil_img))
+        return [aug_img, clean_img]
+    
+    def _process_test_mode(self, pil_img):
+        """Process image for test or benchmark mode."""
+        if self.transform:
+            return [self.transform(pil_img)]
+        return [pil_img]
+    
+    def _process_raw_mode(self, pil_img):
+        """Return the raw PIL image without transformation."""
+        return [pil_img]
+    
+    def _build_result(self, idx, processed_imgs):
+        """Build result tuple with images, labels, and/or indices as needed."""
+        result = processed_imgs.copy()
         
-        # Prepare return values based on mode
-        result = []
-        
-        if self.mode == 'training':
-            # Return (augmented_image, clean_image, label)
-            clean_img = self.base_transform(pil_img)
-            aug_img = self.base_transform(self.aug_transform(pil_img))
-            result.append(aug_img)
-            result.append(clean_img)
-        elif self.mode == 'raw':
-            # Return raw PIL image
-            result.append(pil_img)
-        else:  # 'test' or 'benchmark'
-            # Return transformed image
-            if self.transform:
-                result.append(self.transform(pil_img))
-            else:
-                result.append(pil_img)
-        
-        # Add labels or indices as needed
+        # Add label if requested and available
         if self.return_labels and self.labels and idx < len(self.labels):
             result.append(self.labels[idx])
         
+        # Add index if requested
         if self.return_indices:
             result.append(idx)
             
+        # Return scalar for single items, tuple otherwise
         if len(result) == 1:
-            return result[0]  # Return scalar if only one item
-        return tuple(result)  # Otherwise return tuple
+            return result[0]
+        return tuple(result)
+    
+    def __getitem__(self, idx):
+        """Get item based on the configured mode and return options."""
+        pil_img = self._get_pil_image(idx)
+        
+        # Process image based on mode
+        if self.mode == 'training':
+            processed_imgs = self._process_training_mode(pil_img)
+        elif self.mode == 'raw':
+            processed_imgs = self._process_raw_mode(pil_img)
+        else:  # 'test' or 'benchmark'
+            processed_imgs = self._process_test_mode(pil_img)
+        
+        # Build and return final result
+        return self._build_result(idx, processed_imgs)
 
 # Compatibility wrappers for existing code
 def CIFAR10TestDataset(file_path, transform=BASE_TRANSFORM):
