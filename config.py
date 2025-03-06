@@ -6,8 +6,13 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
 import datetime
+from pathlib import Path
 
 from models import CustomResNet18, CustomEfficientNetV2_B0
+
+# Base directory paths
+ROOT_DIR = Path(__file__).resolve().parent
+DB_PATH = ROOT_DIR / 'models.db'
 
 # Model selection
 MODEL = CustomEfficientNetV2_B0

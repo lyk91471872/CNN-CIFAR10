@@ -3,9 +3,7 @@ import sqlite3
 import json
 from datetime import datetime
 
-# Get the project root directory using package-relative paths
-ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(ROOT_DIR, 'models.db')
+from config import ROOT_DIR, DB_PATH
 
 def init_db():
     """Initialize the database with the required tables if they don't exist."""

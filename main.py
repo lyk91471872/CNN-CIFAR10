@@ -1,6 +1,9 @@
 from requirements import install_requirements
 
 try:
+    # If you're using the package in development mode with setup.py,
+    # you can set SKIP_REQUIREMENTS_CHECK=1 in your environment
+    # or use the --skip-requirements flag
     install_requirements()
 except Exception as e:
     print(f"Error installing requirements: {e}")
@@ -26,12 +29,17 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
     parser.add_argument('-t', '--train', action='store_true', help='Train the model on full dataset')
     parser.add_argument('-c', '--crossval', action='store_true', help='Run cross-validation')
+    parser.add_argument('--skip-requirements', action='store_true', help='Skip requirements check')
     return parser.parse_args()
 
 def main():
     """Main function to run the training or cross-validation."""
     args = parse_args()
-
+    
+    # Set environment variable if skip-requirements flag is used
+    if args.skip_requirements:
+        os.environ['SKIP_REQUIREMENTS_CHECK'] = '1'
+    
     if not (args.train or args.crossval):
         print("Please specify either -t (train) or -c (crossval) mode")
         return
