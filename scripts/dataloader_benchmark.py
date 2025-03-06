@@ -3,8 +3,11 @@ import numpy as np
 import time
 import torch
 from torch.utils.data import DataLoader
+import sys
+import os
 
-from config import TRAIN_DATA_PATHS, DATALOADER
+sys.path.append('..')  # Add project root to path
+from config import TRAIN_DATA_PATHS, DATALOADER, SCRIPTS_OUTPUT_DIR
 from dataset import CIFAR10BenchmarkDataset
 
 NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
@@ -51,10 +54,15 @@ def main():
     else:
         print("\nNo successful configurations found!")
     
-    np.savetxt("benchmark_results.csv", results, delimiter=",", fmt='%s', 
+    # Create output directory if it doesn't exist
+    os.makedirs(SCRIPTS_OUTPUT_DIR, exist_ok=True)
+    
+    # Save results to output directory
+    results_path = os.path.join(SCRIPTS_OUTPUT_DIR, "benchmark_results.csv")
+    np.savetxt(results_path, results, delimiter=",", fmt='%s', 
                header="num_workers,batch_size,time_taken", 
                comments="")
-    print("\nResults saved to benchmark_results.csv")
+    print(f"\nResults saved to {results_path}")
 
 if __name__ == "__main__":
     main()

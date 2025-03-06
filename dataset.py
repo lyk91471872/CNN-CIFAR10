@@ -62,17 +62,8 @@ class CIFAR10TestDataset(Dataset):
     Returns a tuple (transformed_image, index).
     """
     def __init__(self, file_path):
-        # Check if this is a pkl file (newer format) or a batch file (original format)
-        if file_path.endswith('.pkl'):
-            # New format - directly load numpy array
-            with open(file_path, 'rb') as f:
-                self.data = pickle.load(f)
-            # Reshape to (N, 32, 32, 3) for PIL
-            self.data = self.data.reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
-        else:
-            # Original CIFAR batch format
-            batch = load_cifar_batch(file_path)
-            self.data = batch[b'data'].reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
+        batch = load_cifar_batch(file_path)
+        self.data = batch[b'data']
         
     def __len__(self):
         return len(self.data)

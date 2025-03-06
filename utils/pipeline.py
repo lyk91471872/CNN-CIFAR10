@@ -9,7 +9,6 @@ from tqdm import tqdm
 from typing import Dict, List, Tuple
 import pandas as pd
 import numpy as np
-import random
 
 import config as conf
 from .early_stopping import EarlyStopping
@@ -27,68 +26,52 @@ class Pipeline:
             delta=conf.TRAIN['early_stopping_min_delta'],
             verbose=True
         )
+        self.use_augmentation = False
         summary(self.model, (3, 32, 32))
 
-    def train_one_epoch(self, train_loader: DataLoader, aug_prob: float) -> Tuple[float, float]:
+    def train_one_epoch(self, train_loader: DataLoader) -> Tuple[float, float]:
         """Train for one epoch and return loss and accuracy."""
         self.model.train()
         train_loss = 0
         correct = 0
         total = 0
-        
-        for inputs, _, targets in train_loader:
-            batch_size = inputs[0].size(0)
-            
-            # Decide whether to use augmentation for this batch
-            use_augmentation = random.random() < aug_prob
-            
-            if use_augmentation:
-                # Use augmented inputs and apply mixup
-                aug_inputs = inputs[0].to(conf.TRAIN['device'])
-                inputs = aug_inputs
-                
-                # Apply mixup with probability
-                if conf.TRAIN['mixup_alpha'] > 0:
-                    inputs, targets_a, targets_b, lam = mixup_data(
-                        inputs, 
-                        targets.to(conf.TRAIN['device']), 
-                        conf.TRAIN['mixup_alpha']
-                    )
-                    targets_a = targets_a.to(conf.TRAIN['device'])
-                    targets_b = targets_b.to(conf.TRAIN['device'])
-                else:
-                    targets = targets.to(conf.TRAIN['device'])
-            else:
-                # Use clean inputs without mixup
-                clean_inputs = inputs[1].to(conf.TRAIN['device'])
-                inputs = clean_inputs
-                targets = targets.to(conf.TRAIN['device'])
-            
+
+        for aug_inputs, clean_inputs, targets in train_loader:
+            inputs = aug_inputs if self.use_augmentation else clean_inputs
+            inputs, targets = inputs.to(self.device), targets.to(self.device)
+
+            # Mixup augmentation
+            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                aug_inputs, targets_a, targets_b, lam = mixup_data(
+                    aug_inputs, targets, conf.TRAIN['mixup_alpha']
+                )
+
             self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-            
-            if use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
-                loss = self.criterion(outputs, targets_a) * lam + self.criterion(outputs, targets_b) * (1 - lam)
+            outputs = self.model(aug_inputs)
+
+            # Calculate loss
+            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                loss = lam * self.criterion(outputs, targets_a) + (1 - lam) * self.criterion(outputs, targets_b)
             else:
                 loss = self.criterion(outputs, targets)
-            
+
             loss.backward()
             self.optimizer.step()
-            
+
             train_loss += loss.item()
             _, predicted = outputs.max(1)
-            total += targets.size(0) if not use_augmentation or conf.TRAIN['mixup_alpha'] <= 0 else targets_a.size(0)
-            
-            if use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
-                # For mixup, we need to compute accuracy differently
-                correct += (lam * predicted.eq(targets_a).sum().item() + 
-                           (1 - lam) * predicted.eq(targets_b).sum().item())
+            total += targets.size(0)
+
+            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                # Weighted accuracy based on label proportions
+                correct += (lam * predicted.eq(targets_a).float() + 
+                          (1 - lam) * predicted.eq(targets_b).float()).sum().item()
             else:
                 correct += predicted.eq(targets).sum().item()
-        
+
         train_loss = train_loss / len(train_loader)
-        accuracy = 100. * correct / total
-        return train_loss, accuracy
+        train_acc = 100. * correct / total
+        return train_loss, train_acc
 
     def val_one_epoch(self, val_loader: DataLoader) -> Tuple[float, float]:
         """Validate for one epoch and return loss and accuracy."""
@@ -132,26 +115,9 @@ class Pipeline:
 
         best_val_loss = float('inf')
         pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
-        
-        # Progressive learning settings
-        prog_learning = conf.TRAIN.get('progressive_learning', False)
-        start_prob = conf.TRAIN.get('aug_start_prob', 0.0)
-        end_prob = conf.TRAIN.get('aug_end_prob', 1.0)
-        ramp_epochs = conf.TRAIN.get('aug_ramp_epochs', 20)
-        
         for epoch in pbar:
-            # Calculate current augmentation probability
-            if prog_learning:
-                if epoch >= ramp_epochs:
-                    aug_prob = end_prob
-                else:
-                    aug_prob = start_prob + (end_prob - start_prob) * (epoch / ramp_epochs)
-            else:
-                aug_prob = 1.0  # Always use augmentation if progressive learning is disabled
-                
-            # Train for one epoch with augmentation probability
-            train_loss, train_acc = self.train_one_epoch(train_loader, aug_prob)
-            
+            self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
+            train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.val_one_epoch(val_loader)
             self.scheduler.step(val_loss)
             self.early_stopping(val_loss)  # Early stopping based on validation loss
@@ -172,8 +138,7 @@ class Pipeline:
                 'tr_loss': f'{train_loss:.2f}',
                 'tr_acc': f'{train_acc:.2f}%',
                 'val_loss': f'{val_loss:.2f}',
-                'val_acc': f'{val_acc:.2f}%',
-                'aug_prob': f'{aug_prob:.2f}'
+                'val_acc': f'{val_acc:.2f}%'
             })
 
         return history

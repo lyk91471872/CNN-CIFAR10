@@ -5,6 +5,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
+import datetime
 
 from models import CustomResNet18, CustomEfficientNetV2_B0
 
@@ -16,12 +17,27 @@ DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
 TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
 TEST_DATA_PATH = 'data/cifar_test_nolabel.pkl'
 
-# Save paths
+# Directory paths
 WEIGHTS_DIR = 'weights'
 GRAPHS_DIR = 'graphs'
+SCRIPTS_OUTPUT_DIR = 'scripts/outputs'
+PREDICTIONS_DIR = 'predictions'
+
+# Create directories
 os.makedirs(WEIGHTS_DIR, exist_ok=True)
 os.makedirs(GRAPHS_DIR, exist_ok=True)
+os.makedirs(SCRIPTS_OUTPUT_DIR, exist_ok=True)
+os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 
+# Helper function to generate filenames with timestamp
+def get_timestamped_filename(model, extension, directory=None):
+    """Generate a filename using model name and current timestamp"""
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    model_name = str(model).split('(')[0]  # Extract model class name
+    filename = f"{model_name}_{timestamp}.{extension}"
+    if directory:
+        return os.path.join(directory, filename)
+    return filename
 
 # Dataset parameters
 NUM_CLASSES = 10
@@ -71,9 +87,5 @@ TRAIN = {
     'early_stopping_min_delta': 0.001,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    # Progressive learning parameters
-    'progressive_learning': True,
-    'aug_start_prob': 0.0,     # Starting probability of augmentation
-    'aug_end_prob': 1.0,       # Final probability of augmentation
-    'aug_ramp_epochs': 20      # Number of epochs to reach full augmentation
+    'no_augmentation_epochs': 10
 }
