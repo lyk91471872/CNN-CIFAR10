@@ -1,9 +1,25 @@
-numpy>=1.18.0
+# Core scientific and data processing
+numpy>=1.18.0,<2.0.0  # Avoid compatibility issues with NumPy 2.x
 pandas>=1.0.0
 matplotlib>=3.1.0
+scikit-learn>=0.23.0
+
+# Deep learning
 torch>=1.7.0
 torchvision>=0.8.0
 torchsummary>=1.5.1
-scikit-learn>=0.23.0
+
+# Image processing
+Pillow>=7.0.0,<10.0.0  # For compatibility with older torchvision versions
+
+# Progress bars and utilities
 tqdm>=4.40.0
-Pillow>=7.0.0
+
+# Python utilities
+setuptools>=49.0.0
+pathlib>=1.0.0  # Built-in for Python 3.6+, but listed for clarity
+typing-extensions>=3.7.4
+
+# For potential future development
+# jupyter>=1.0.0  # Uncomment if notebooks are used
+# ipywidgets>=7.5.0  # Uncomment if interactive widgets are needed
