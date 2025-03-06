@@ -63,7 +63,7 @@ def update_config_file(means, stds):
         
         print("Config updated successfully.")
         print(f"New normalization values: mean={means}, std={stds}")
-        print("Please restart your application for changes to take effect.")
+        print("Please restart for changes to take effect.")
         
         return True
     except Exception as e:

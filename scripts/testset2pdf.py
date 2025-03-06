@@ -95,7 +95,7 @@ def testset_to_pdf(dataset, output_pdf, use_grayscale=False):
         print("No pages were created.")
 
 if __name__ == '__main__':
-    output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images_raw.pdf")
+    output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images.pdf")
     # Set use_grayscale to True if you want to convert images to grayscale and use magenta for the ID
     test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test', raw=True)
     testset_to_pdf(test_dataset, output_pdf_path, use_grayscale=False) 
