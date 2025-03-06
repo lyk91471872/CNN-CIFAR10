@@ -8,19 +8,9 @@ from torchvision.transforms import AutoAugment, AutoAugmentPolicy
 import datetime
 from pathlib import Path
 
-from models import CustomResNet18, CustomEfficientNetV2_B0
-
 # Base directory paths
 ROOT_DIR = Path(__file__).resolve().parent
 DB_PATH = ROOT_DIR / 'models.db'
-
-# Model selection
-MODEL = CustomEfficientNetV2_B0
-
-# Data paths
-DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
-TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
-TEST_DATA_PATH = 'data/cifar_test_nolabel.pkl'
 
 # Directory paths
 WEIGHTS_DIR = 'weights'
@@ -94,3 +84,16 @@ TRAIN = {
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'no_augmentation_epochs': 10
 }
+
+# Data paths
+DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
+TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
+TEST_DATA_PATH = 'data/cifar_test_nolabel.pkl'
+
+# Model selection - using a function to avoid circular imports
+def get_model():
+    """Get the model class to use for training.
+    This function is used to avoid circular imports between config.py and models.
+    """
+    from models import CustomEfficientNetV2_B0, CustomResNet18
+    return CustomEfficientNetV2_B0  # Change this to use a different model

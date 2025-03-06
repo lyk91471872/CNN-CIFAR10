@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 
 import config as conf
 from dataset import CIFAR10Dataset, CIFAR10TestDataset
-from models import CustomResNet18, CustomEfficientNetV2_B0
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history
 from utils.db import record_prediction, get_model_run_by_weights
@@ -30,7 +29,7 @@ def main():
         return
 
     dataset = CIFAR10Dataset(data_paths=conf.TRAIN_DATA_PATHS)
-    model = conf.MODEL()
+    model = conf.get_model()()  # Get the model class and instantiate it
     pipeline = Pipeline(model)
 
     if args.crossval:
