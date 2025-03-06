@@ -41,8 +41,8 @@ CHANNELS = 3
 
 # Normalization values for CIFAR-10
 # These are placeholder values that will be updated by compute_normalization.py
-CIFAR10_MEAN = (0.5, 0.5, 0.5)
-CIFAR10_STD = (0.5, 0.5, 0.5)
+CIFAR10_MEAN = (0.4914009, 0.48215896, 0.4465308)
+CIFAR10_STD = (0.24703279, 0.24348423, 0.26158753)
 
 # Base transforms (without augmentation)
 BASE_TRANSFORM = transforms.Compose([

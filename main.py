@@ -7,7 +7,12 @@ import os
 import config as conf
 from dataset import create_dataset
 from utils.pipeline import Pipeline
-from utils.visualization import plot_training_history
+from utils.visualization import (
+    plot_training_history, 
+    plot_dataset_samples, 
+    plot_augmentation_comparison,
+    plot_samples_with_predictions
+)
 from utils.db import record_prediction, get_model_run_by_weights
 
 def parse_args():
@@ -27,63 +32,8 @@ def main():
     """Main function to run the training or cross-validation."""
     args = parse_args()
 
-    if args.train or args.crossval:
-        # Original training/cross-validation code
-        dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training')
-        model = conf.get_model()()  # Get the model class and instantiate it
-        pipeline = Pipeline(model)
-
-        if args.crossval:
-            print("\nStarting cross-validation...")
-            fold_results = pipeline.cross_validate(dataset)
-            print("\nCross-validation results:")
-            for result in fold_results:
-                print(f"Fold {result['fold']}: Best validation accuracy = {result['best_val_acc']:.2f}%")
-
-        if args.train:
-            print("\nTraining on full dataset...")
-            train_size = int(0.9 * len(dataset))
-            val_size = len(dataset) - train_size
-            train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
-            train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
-            val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
-
-            history = pipeline.train(
-                train_loader=train_loader,
-                val_loader=val_loader
-            )
-            plot_training_history(history)
-
-            print("\nGenerating predictions...")
-            # Load the best model
-            model.load()
-            
-            test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
-            test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
-            predictions, indices = pipeline.predict(test_loader)
-
-            # Create a timestamped prediction file path
-            prediction_file = conf.get_timestamped_filename(model, 'csv', conf.PREDICTIONS_DIR)
-            
-            submission = pd.DataFrame({'ID': indices, 'Label': predictions})
-            submission.to_csv(prediction_file, index=False)
-            print(f"\nTest predictions saved to {prediction_file}")
-            
-            # Record the prediction in the database
-            try:
-                # Get model run details from the database using the model's weight path
-                if model.weight_path:
-                    run_info = get_model_run_by_weights(model.weight_path)
-                    if run_info:
-                        record_prediction(run_info['id'], prediction_file)
-                        print(f"Recorded prediction in database, linked to model run {run_info['id']}")
-                    else:
-                        print("Warning: Could not find model run in database")
-            except Exception as e:
-                print(f"Warning: Failed to record prediction in database: {e}")
-    
-    elif args.pdf:
-        # Import and run testset2pdf.py
+    # Handle PDF generation (early return)
+    if args.pdf:
         print("\nGenerating PDF of test images...")
         try:
             from scripts.testset2pdf import testset_to_pdf
@@ -95,24 +45,125 @@ def main():
             print(f"PDF generated successfully: {output_pdf_path}")
         except Exception as e:
             print(f"Error generating PDF: {e}")
-    
-    elif args.benchmark:
-        # Import and run dataloader_benchmark.py
+        return
+
+    # Handle benchmark (early return)
+    if args.benchmark:
         print("\nRunning dataloader benchmark...")
         try:
             from scripts.dataloader_benchmark import main as benchmark_main
             benchmark_main()
         except Exception as e:
             print(f"Error running benchmark: {e}")
+        return
     
-    elif args.normalize:
-        # Import and run update_normalization_values.py
+    # Handle normalization (early return)
+    if args.normalize:
         print("\nUpdating normalization values...")
         try:
             from scripts.update_normalization_values import main as normalize_main
             normalize_main()
         except Exception as e:
             print(f"Error updating normalization values: {e}")
+        return
+
+    # Handle cross-validation
+    if args.crossval:
+        print("\nStarting cross-validation...")
+        dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training')
+        model = conf.get_model()()  # Get the model class and instantiate it
+        pipeline = Pipeline(model)
+        
+        fold_results = pipeline.cross_validate(dataset)
+        print("\nCross-validation results:")
+        for result in fold_results:
+            print(f"Fold {result['fold']}: Best validation accuracy = {result['best_val_acc']:.2f}%")
+        return
+
+    # Handle training
+    if args.train:
+        print("\nTraining on full dataset...")
+        dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training')
+        model = conf.get_model()()  # Get the model class and instantiate it
+        pipeline = Pipeline(model)
+        
+        train_size = int(0.9 * len(dataset))
+        val_size = len(dataset) - train_size
+        train_dataset, val_dataset = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(42))
+        train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
+        val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
+
+        # Visualize dataset samples before training
+        plot_dataset_samples(
+            train_loader, 
+            num_samples=16, 
+            title="CIFAR-10 Training Samples",
+            save_path=os.path.join(conf.GRAPHS_DIR, "training_samples.png")
+        )
+        
+        # For a batch to visualize augmentations
+        for batch in train_loader:
+            aug_images, clean_images, _ = batch
+            # Visualize augmentations
+            plot_augmentation_comparison(
+                clean_images, 
+                aug_images, 
+                num_samples=5,
+                save_path=os.path.join(conf.GRAPHS_DIR, "augmentation_examples.png")
+            )
+            break  # Just use the first batch
+        
+        # Train the model
+        history = pipeline.train(
+            train_loader=train_loader,
+            val_loader=val_loader
+        )
+        plot_training_history(history)
+
+        print("\nGenerating predictions...")
+        # Load the best model
+        model.load()
+        
+        test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
+        test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
+        predictions, indices = pipeline.predict(test_loader)
+
+        # Create a timestamped prediction file path
+        prediction_file = conf.get_timestamped_filename(model, 'csv', conf.PREDICTIONS_DIR)
+        
+        submission = pd.DataFrame({'ID': indices, 'Label': predictions})
+        submission.to_csv(prediction_file, index=False)
+        print(f"\nTest predictions saved to {prediction_file}")
+        
+        # Visualize some predictions
+        test_viz_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
+        test_viz_loader = DataLoader(test_viz_dataset, shuffle=False, batch_size=64)
+        batch = next(iter(test_viz_loader))
+        images, batch_indices = batch
+        
+        # Get labels for the batch indices
+        batch_predictions = [predictions[indices.index(idx)] for idx in batch_indices.tolist() if idx in indices]
+        
+        # Visualize predictions
+        plot_samples_with_predictions(
+            images=images[:16], 
+            pred_labels=batch_predictions[:16],
+            save_path=os.path.join(conf.GRAPHS_DIR, "test_predictions.png")
+        )
+        
+        # Record the prediction in the database
+        try:
+            # Get model run details from the database using the model's weight path
+            if model.weight_path:
+                run_info = get_model_run_by_weights(model.weight_path)
+                if run_info:
+                    record_prediction(run_info['id'], prediction_file)
+                    print(f"Recorded prediction in database, linked to model run {run_info['id']}")
+                else:
+                    print("Warning: Could not find model run in database")
+        except Exception as e:
+            print(f"Warning: Failed to record prediction in database: {e}")
+        return
 
 if __name__ == "__main__":
     main()
