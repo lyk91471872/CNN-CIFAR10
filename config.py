@@ -39,6 +39,17 @@ NUM_CLASSES = 10
 IMAGE_SIZE = 32
 CHANNELS = 3
 
+# Normalization values for CIFAR-10
+# These are placeholder values that will be updated by compute_normalization.py
+CIFAR10_MEAN = (0.5, 0.5, 0.5)
+CIFAR10_STD = (0.5, 0.5, 0.5)
+
+# Base transforms (without augmentation)
+BASE_TRANSFORM = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD)
+])
+
 # Augmentation transforms applied only to training data
 # TRANSFORM = transforms.Compose([
 #     transforms.RandomHorizontalFlip(),

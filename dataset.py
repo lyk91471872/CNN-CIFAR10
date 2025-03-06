@@ -4,7 +4,7 @@ import pickle
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-from config import TRANSFORM
+from config import TRANSFORM, BASE_TRANSFORM
 
 def load_cifar_batch(file_path):
     """
@@ -40,17 +40,13 @@ class CIFAR10Dataset(Dataset):
         img = self.data[idx]
         pil_img = Image.fromarray(img)
         
-        # Always apply base transforms
-        base_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-        clean_img = base_transform(pil_img)
+        # Apply base transform from config
+        clean_img = BASE_TRANSFORM(pil_img)
         
         # Apply augmentation transform from config
         aug_img = TRANSFORM(pil_img)
-        # Apply base transforms after augmentation
-        aug_img = base_transform(aug_img)
+        # Apply base transform after augmentation
+        aug_img = BASE_TRANSFORM(aug_img)
             
         label = self.labels[idx]
         return aug_img, clean_img, label
@@ -63,7 +59,7 @@ class CIFAR10TestDataset(Dataset):
     """
     def __init__(self, file_path):
         batch = load_cifar_batch(file_path)
-        self.data = batch[b'data']
+        self.data = batch[b'data'] # Do not reshape, it is already (N, 32, 32, 3)
         
     def __len__(self):
         return len(self.data)
@@ -72,14 +68,8 @@ class CIFAR10TestDataset(Dataset):
         img = self.data[idx]
         pil_img = Image.fromarray(img)
         
-        # Always apply base transforms
-        base_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-        
-        # Always apply base transforms
-        img = base_transform(pil_img)
+        # Apply base transform from config
+        img = BASE_TRANSFORM(pil_img)
         return img, idx
 
 class CIFAR10BenchmarkDataset(Dataset):
@@ -97,17 +87,14 @@ class CIFAR10BenchmarkDataset(Dataset):
         # Reshape data to (N, 32, 32, 3)
         self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
         
-        # Base transform for normalization
-        self.base_transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ])
-        
     def __len__(self):
         return len(self.labels)
     
     def __getitem__(self, idx):
         img = self.data[idx]
         pil_img = Image.fromarray(img)
-        img = self.base_transform(pil_img)
-        return img, self.labels[idx]
+        
+        # Apply base transform from config
+        img = BASE_TRANSFORM(pil_img)
+        label = self.labels[idx]
+        return img, label
