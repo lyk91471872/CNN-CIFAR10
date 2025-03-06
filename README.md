@@ -10,6 +10,17 @@ To install the package in development mode:
 pip install -e .
 ```
 
+Alternatively, you can check for missing dependencies using the provided script:
+
+```bash
+./check_dependencies.sh
+```
+
+This interactive script will:
+1. Check which dependencies are already installed
+2. Show you any missing dependencies
+3. Offer to install them automatically
+
 ## Project Structure
 
 ```

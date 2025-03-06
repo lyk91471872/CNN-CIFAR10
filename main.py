@@ -1,24 +1,12 @@
-try:
-    # Try importing required packages
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    from torch.utils.data import DataLoader, random_split
-    import pandas as pd
-    import argparse
-    import os
-    import torchvision.transforms as transforms
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from tqdm import tqdm
-    from PIL import Image
-except ImportError as e:
-    print(f"Error importing required packages: {e}")
-    print("\nTo install all dependencies, run:")
-    print("    pip install -e .")
-    print("Or to install just the missing dependency:")
-    print(f"    pip install {str(e).split()[-1]}")
-    exit(1)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, random_split
+import pandas as pd
+import argparse
+import os
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
 
 import config as conf
 from dataset import CIFAR10Dataset, CIFAR10TestDataset
