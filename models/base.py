@@ -2,45 +2,49 @@ import torch
 from torch import nn
 import os
 import config as conf
-from utils.db import record_model_run, get_model_run_by_weights
 
 class BaseModel(nn.Module):
     def __init__(self):
         super().__init__()
         os.makedirs(conf.WEIGHTS_DIR, exist_ok=True)
-        # Default weight path will now use the timestamped filename
-        self.weight_path = None  # Will be set on save()
+        # Path to save/load weights
+        self.weight_path = None
+        # Current best validation accuracy
+        self.best_val_accuracy = 0.0
         
-    def save(self, path: str = None, epochs: int = None) -> None:
-        """Save model weights to the specified path or default path.
+    def save(self, epoch=None, accuracy=None, path=None) -> None:
+        """Save model weights using the session-based naming scheme.
         
         Args:
-            path: Optional full path to save the model. If None, generates timestamped path.
-            epochs: Number of epochs the model was trained for.
+            epoch: Number of epochs trained (optional)
+            accuracy: Validation accuracy (optional)
+            path: Optional full path to save the model. If None, generates a session-based path.
         """
         if path is None:
-            # Generate timestamped filename
-            path = conf.get_timestamped_filename(self, 'pth', conf.WEIGHTS_DIR)
+            # Generate session-based filename
+            path = conf.get_session_filename(
+                self, 
+                epoch=epoch, 
+                accuracy=accuracy, 
+                extension="pth", 
+                directory=conf.WEIGHTS_DIR
+            )
         
+        # Ensure directory exists
         os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Save model state
         torch.save(self.state_dict(), path)
         print(f"\nSaved model weights to {path}")
         
-        # Set this as the current weight path
+        # Update current weight path
         self.weight_path = path
         
-        # Record the model in the database
-        try:
-            # Create a config dictionary with relevant parameters
-            config_dict = {
-                'model_type': str(self),
-                'optimizer': conf.OPTIMIZER,
-                'scheduler': conf.SCHEDULER,
-                'training': conf.TRAIN,
-            }
-            record_model_run(self, path, config_dict, epochs)
-        except Exception as e:
-            print(f"Warning: Failed to record model in database: {e}")
+        # Record best validation accuracy if provided
+        if accuracy is not None:
+            self.best_val_accuracy = max(self.best_val_accuracy, accuracy)
+        
+        return path
         
     def load(self, path: str = None) -> None:
         """Load model weights from the specified path or default path.
@@ -63,9 +67,23 @@ class BaseModel(nn.Module):
             path = path or self.weight_path
             
         if os.path.exists(path):
-            self.load_state_dict(torch.load(path, weights_only=True))
+            # Use weights_only=True to only load weights
+            try:
+                self.load_state_dict(torch.load(path, weights_only=True))
+            except TypeError:
+                # For older PyTorch versions that don't have weights_only parameter
+                self.load_state_dict(torch.load(path))
+                
             # Set this as the current weight path
             self.weight_path = path
             print(f"Loaded model weights from {path}")
         else:
-            print(f"No weights found at {path}. Using initialized weights.") 
+            print(f"No weights found at {path}. Using initialized weights.")
+            
+    def get_config(self):
+        """Get model configuration as a dictionary."""
+        # Default implementation that derived classes can override
+        return {
+            "type": self.__class__.__name__,
+            "params": str(self)
+        } 

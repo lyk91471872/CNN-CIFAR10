@@ -10,8 +10,7 @@ from datetime import datetime
 import config as conf
 from dataset import create_dataset
 from utils.pipeline import Pipeline
-from utils.visualization import plot_training_history, plot_crossval_history
-from utils.db import record_prediction, get_model_run_by_weights, init_db, record_crossval_results
+from utils.visualization import plot_training_history
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
@@ -24,12 +23,53 @@ def parse_args():
     group.add_argument('-tp', '--train-pdf', action='store_true', help='Generate PDF of training images (batch 1)')
     group.add_argument('-d', '--benchmark', action='store_true', help='Run dataloader benchmark')
     group.add_argument('-n', '--normalize', action='store_true', help='Update normalization values')
+    group.add_argument('-l', '--list-sessions', action='store_true', help='List recent training/cross-validation sessions')
+    
+    # Optional arguments
+    parser.add_argument('--model', type=str, help='Filter sessions by model name')
+    parser.add_argument('--type', type=str, choices=['training', 'crossval'], help='Filter sessions by type')
+    parser.add_argument('--limit', type=int, default=10, help='Maximum number of sessions to list')
     
     return parser.parse_args()
 
 def main():
     """Main function to run the training or cross-validation."""
     args = parse_args()
+
+    # Handle listing sessions (early return)
+    if args.list_sessions:
+        print("\nListing recent training/cross-validation sessions:")
+        sessions = conf.SessionTracker.list_sessions(
+            model_name=args.model,
+            session_type=args.type,
+            limit=args.limit
+        )
+        
+        if not sessions:
+            print("No sessions found matching your criteria.")
+            return
+        
+        print(f"\nFound {len(sessions)} session(s):")
+        for i, session in enumerate(sessions, 1):
+            data = session.data
+            print(f"\n{i}. {data['model_name']} - {data['session_type']} - {data['timestamp']}")
+            
+            if 'metrics' in data:
+                metrics = data['metrics']
+                if 'best_val_acc' in metrics:
+                    print(f"   Accuracy: {metrics['best_val_acc']*100:.2f}%")
+                if 'epochs' in metrics:
+                    print(f"   Epochs: {metrics['epochs']}")
+                if 'avg_val_acc' in metrics:
+                    print(f"   Avg CV Accuracy: {metrics['avg_val_acc']*100:.2f}%")
+            
+            if 'files' in data:
+                files = data['files']
+                print(f"   Files:")
+                for file_type, file_path in files.items():
+                    print(f"     - {file_type}: {file_path}")
+        
+        return
 
     # Handle PDF generation (early return)
     if args.pdf:
@@ -45,7 +85,7 @@ def main():
         except Exception as e:
             print(f"Error generating PDF: {e}")
         return
-
+    
     # Handle training PDF generation (early return)
     if args.train_pdf:
         print("\nGenerating PDF of training images (batch 1)...")
@@ -90,31 +130,8 @@ def main():
         model = conf.get_model()()  # Get the model class and instantiate it
         pipeline = Pipeline(model)
         
+        # Pipeline.cross_validate handles everything including plotting and tracking
         fold_results = pipeline.cross_validate(dataset)
-        
-        # Display results for each fold
-        print("\nCross-validation results:")
-        best_val_accs = []
-        for result in fold_results:
-            print(f"Fold {result['fold']}: Best validation accuracy = {result['best_val_acc']:.2f}%")
-            best_val_accs.append(result['best_val_acc'])
-        
-        # Calculate and display average performance
-        avg_val_acc = np.mean(best_val_accs)
-        std_val_acc = np.std(best_val_accs)
-        print(f"\nAverage validation accuracy: {avg_val_acc:.2f}% ± {std_val_acc:.2f}%")
-        
-        # Plot average training history using the visualization module
-        history_path = os.path.join(conf.GRAPHS_DIR, 'crossval_history.png')
-        avg_history = plot_crossval_history(fold_results, save_path=history_path)
-        
-        # Record cross-validation results in the database
-        try:
-            run_id = record_crossval_results(model, fold_results, history_path)
-            print(f"Cross-validation results recorded in database with ID {run_id}")
-        except Exception as e:
-            print(f"Warning: Failed to record cross-validation results in database: {e}")
-        
         return
 
     # Handle training
@@ -130,40 +147,11 @@ def main():
         train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
         val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
         
-        # Train the model
+        # Pipeline.train handles everything including plotting, prediction generation, and tracking
         history = pipeline.train(
             train_loader=train_loader,
             val_loader=val_loader
         )
-        plot_training_history(history)
-
-        print("\nGenerating predictions...")
-        # Load the best model
-        model.load()
-        
-        test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
-        test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
-        predictions, indices = pipeline.predict(test_loader)
-
-        # Create a timestamped prediction file path
-        prediction_file = conf.get_timestamped_filename(model, 'csv', conf.PREDICTIONS_DIR)
-        
-        submission = pd.DataFrame({'ID': indices, 'Label': predictions})
-        submission.to_csv(prediction_file, index=False)
-        print(f"\nTest predictions saved to {prediction_file}")
-        
-        # Record the prediction in the database
-        try:
-            # Get model run details from the database using the model's weight path
-            if model.weight_path:
-                run_info = get_model_run_by_weights(model.weight_path)
-                if run_info:
-                    record_prediction(run_info['id'], prediction_file)
-                    print(f"Recorded prediction in database, linked to model run {run_info['id']}")
-                else:
-                    print("Warning: Could not find model run in database")
-        except Exception as e:
-            print(f"Warning: Failed to record prediction in database: {e}")
         return
 
 if __name__ == "__main__":
