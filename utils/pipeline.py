@@ -10,11 +10,13 @@ from typing import Dict, List, Tuple
 import numpy as np
 import os
 from sklearn.metrics import confusion_matrix
+import pandas as pd
 
 import config as conf
-from .early_stopping import EarlyStopping
-from .augmentation import mixup_data
-from .visualization import plot_training_history, plot_confusion_matrix, plot_crossval_history, plot_crossval_confusion_matrices
+from utils.early_stopping import EarlyStopping
+from utils.augmentation import mixup_data
+from utils.visualization import plot_training_history, plot_confusion_matrix, plot_crossval_history, plot_crossval_confusion_matrices
+from utils.session import SessionTracker, get_session_filename
 
 class Pipeline:
     def __init__(self, model: nn.Module):
@@ -143,8 +145,8 @@ class Pipeline:
         Returns:
             Dictionary containing training history
         """
-        # Create session tracker
-        session = conf.SessionTracker(self.model, "training")
+        # Create a session tracker
+        session = SessionTracker(self.model, "training")
         
         history = {
             'train_losses': [],
@@ -230,7 +232,7 @@ class Pipeline:
             predictions, indices = self.predict(test_loader)
             
             # Create prediction file with matched naming
-            pred_path = conf.get_session_filename(
+            pred_path = get_session_filename(
                 self.model, 
                 epoch=completed_epochs, 
                 accuracy=best_val_acc, 
@@ -239,7 +241,6 @@ class Pipeline:
             )
             
             # Save predictions
-            import pandas as pd
             submission = pd.DataFrame({'ID': indices, 'Label': predictions})
             submission.to_csv(pred_path, index=False)
             print(f"\nTest predictions saved to {pred_path}")
@@ -285,8 +286,8 @@ class Pipeline:
 
     def cross_validate(self, dataset: torch.utils.data.Dataset, k_folds: int = 5) -> List[Dict]:
         """Perform k-fold cross-validation and return results for each fold."""
-        # Create session tracker for cross-validation
-        session = conf.SessionTracker(self.model, "crossval")
+        # Create a session tracker
+        session = SessionTracker(self.model, "crossval")
         
         # Save the initial model state to reset for each fold
         initial_state = self.model.state_dict().copy()

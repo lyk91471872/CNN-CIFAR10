@@ -6,6 +6,7 @@ import os
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from config import GRAPHS_DIR, CIFAR10_CLASSES
+from utils.session import get_session_filename
 
 def plot_training_history(history: Dict[str, List[float]], model=None, epoch=None, accuracy=None, save_path: Optional[str] = None) -> None:
     """
@@ -18,7 +19,6 @@ def plot_training_history(history: Dict[str, List[float]], model=None, epoch=Non
         accuracy: Validation accuracy (for filename)
         save_path (str, optional): Path to save the plot. If None, uses session-based filename
     """
-    from config import get_session_filename
     
     if save_path is None and model is not None:
         os.makedirs(GRAPHS_DIR, exist_ok=True)
@@ -82,15 +82,7 @@ def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None,
         save_path: Path to save the plot. If None, uses session-based filename
         normalize: Whether to normalize the confusion matrix (default: True)
     """
-    from config import get_session_filename
     
-    # Convert to numpy arrays if needed
-    if isinstance(y_true, torch.Tensor):
-        y_true = y_true.cpu().numpy()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.cpu().numpy()
-    
-    # Generate a filename if not provided
     if save_path is None and model is not None:
         os.makedirs(GRAPHS_DIR, exist_ok=True)
         save_path = get_session_filename(
@@ -104,6 +96,12 @@ def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None,
     elif save_path is None:
         os.makedirs(GRAPHS_DIR, exist_ok=True)
         save_path = os.path.join(GRAPHS_DIR, 'confusion_matrix.png')
+    
+    # Convert to numpy arrays if needed
+    if isinstance(y_true, torch.Tensor):
+        y_true = y_true.cpu().numpy()
+    if isinstance(y_pred, torch.Tensor):
+        y_pred = y_pred.cpu().numpy()
     
     # Compute confusion matrix
     cm = confusion_matrix(y_true, y_pred)
@@ -150,7 +148,6 @@ def plot_crossval_history(fold_results: List[Dict], model=None, save_path: Optio
     Returns:
         Dict[str, List[float]]: The averaged history dictionary
     """
-    from config import get_session_filename
     
     if save_path is None and model is not None:
         os.makedirs(GRAPHS_DIR, exist_ok=True)
@@ -232,7 +229,6 @@ def plot_crossval_confusion_matrices(fold_results, model=None, save_path=None):
         model: Model object (for generating filename)
         save_path: Path to save the plot. If None, generates a session-based path
     """
-    from config import get_session_filename
     
     if save_path is None and model is not None:
         os.makedirs(GRAPHS_DIR, exist_ok=True)

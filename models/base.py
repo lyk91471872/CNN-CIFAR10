@@ -1,12 +1,13 @@
 import torch
 from torch import nn
 import os
-import config as conf
+from config import WEIGHTS_DIR
+from utils.session import get_session_filename
 
 class BaseModel(nn.Module):
     def __init__(self):
         super().__init__()
-        os.makedirs(conf.WEIGHTS_DIR, exist_ok=True)
+        os.makedirs(WEIGHTS_DIR, exist_ok=True)
         # Path to save/load weights
         self.weight_path = None
         # Current best validation accuracy
@@ -22,12 +23,12 @@ class BaseModel(nn.Module):
         """
         if path is None:
             # Generate session-based filename
-            path = conf.get_session_filename(
+            path = get_session_filename(
                 self, 
                 epoch=epoch, 
                 accuracy=accuracy, 
                 extension="pth", 
-                directory=conf.WEIGHTS_DIR
+                directory=WEIGHTS_DIR
             )
         
         # Ensure directory exists
@@ -54,12 +55,12 @@ class BaseModel(nn.Module):
         """
         if path is None and self.weight_path is None:
             # No path specified and no saved path - try the latest model
-            model_files = [f for f in os.listdir(conf.WEIGHTS_DIR) 
+            model_files = [f for f in os.listdir(WEIGHTS_DIR) 
                           if f.startswith(str(self).split('(')[0]) and f.endswith('.pth')]
             if model_files:
                 # Sort by modification time (newest first)
-                model_files.sort(key=lambda x: os.path.getmtime(os.path.join(conf.WEIGHTS_DIR, x)), reverse=True)
-                path = os.path.join(conf.WEIGHTS_DIR, model_files[0])
+                model_files.sort(key=lambda x: os.path.getmtime(os.path.join(WEIGHTS_DIR, x)), reverse=True)
+                path = os.path.join(WEIGHTS_DIR, model_files[0])
             else:
                 print(f"No weights found for {str(self).split('(')[0]}. Using initialized weights.")
                 return

@@ -8,8 +8,9 @@ import json
 from datetime import datetime
 
 import config as conf
-from dataset import create_dataset
+from utils.dataset import create_dataset
 from utils.pipeline import Pipeline
+from utils.session import SessionTracker
 from utils.visualization import plot_training_history
 
 def parse_args():
@@ -39,7 +40,7 @@ def main():
     # Handle listing sessions (early return)
     if args.list_sessions:
         print("\nListing recent training/cross-validation sessions:")
-        sessions = conf.SessionTracker.list_sessions(
+        sessions = SessionTracker.list_sessions(
             model_name=args.model,
             session_type=args.type,
             limit=args.limit
