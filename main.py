@@ -5,86 +5,13 @@ import argparse
 import os
 import numpy as np
 import json
-import sqlite3
 from datetime import datetime
 
 import config as conf
 from dataset import create_dataset
 from utils.pipeline import Pipeline
 from utils.visualization import plot_training_history, plot_crossval_history
-from utils.db import record_prediction, get_model_run_by_weights, init_db
-
-def record_crossval_results(model, fold_results, avg_history_path):
-    """Record cross-validation results in the database.
-    
-    Args:
-        model: The model instance
-        fold_results: List of dictionaries containing fold results
-        avg_history_path: Path to the saved average history plot
-    
-    Returns:
-        int: The ID of the inserted record
-    """
-    init_db()
-    conn = sqlite3.connect(conf.DB_PATH)
-    cursor = conn.cursor()
-    
-    # Check if cross_validation_results table exists, create if not
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS cross_validation_results (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        model_name TEXT NOT NULL,
-        timestamp TEXT NOT NULL,
-        num_folds INTEGER NOT NULL,
-        avg_val_acc REAL NOT NULL,
-        std_val_acc REAL NOT NULL,
-        history_plot_path TEXT NOT NULL,
-        fold_details TEXT NOT NULL,
-        model_config TEXT NOT NULL
-    )
-    ''')
-    
-    # Extract relevant data
-    model_name = str(model.__class__.__name__)
-    timestamp = datetime.now().isoformat()
-    num_folds = len(fold_results)
-    
-    # Calculate statistics
-    best_val_accs = [result['best_val_acc'] for result in fold_results]
-    avg_val_acc = np.mean(best_val_accs)
-    std_val_acc = np.std(best_val_accs)
-    
-    # Model configuration
-    model_config = {
-        'model_name': model_name,
-        'model_params': model.get_config() if hasattr(model, 'get_config') else {},
-        'optimizer': conf.OPTIMIZER,
-        'dataloader': conf.DATALOADER,
-    }
-    
-    # Insert record
-    cursor.execute(
-        '''INSERT INTO cross_validation_results 
-           (model_name, timestamp, num_folds, avg_val_acc, std_val_acc, 
-            history_plot_path, fold_details, model_config) 
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-        (
-            model_name, 
-            timestamp, 
-            num_folds, 
-            float(avg_val_acc), 
-            float(std_val_acc), 
-            avg_history_path, 
-            json.dumps([{k: v for k, v in r.items() if k != 'history'} for r in fold_results], default=str),
-            json.dumps(model_config, default=str)
-        )
-    )
-    
-    run_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    
-    return run_id
+from utils.db import record_prediction, get_model_run_by_weights, init_db, record_crossval_results
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train or cross-validate a model on CIFAR-10')
