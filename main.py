@@ -4,7 +4,7 @@ import os
 import click
 
 import config as conf
-from utils.dataset import create_dataset
+from dataset import create_dataset
 from utils.pipeline import Pipeline
 from utils.session import SessionTracker
 
