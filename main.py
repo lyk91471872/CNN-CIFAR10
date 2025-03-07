@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, random_split
 import os
+import sys
 import click
 
 import config as conf
@@ -8,37 +9,14 @@ from dataset import create_dataset
 from utils.pipeline import Pipeline
 from utils.session import SessionTracker
 
-class AliasedGroup(click.Group):
-    def get_command(self, ctx, cmd_name):
-        # Try to get the command normally
-        rv = click.Group.get_command(self, ctx, cmd_name)
-        if rv is not None:
-            return rv
-        # Otherwise, search through commands for an alias match
-        for cmd in self.commands.values():
-            aliases = getattr(cmd, "aliases", [])
-            if cmd_name in aliases:
-                return cmd
-        return None
-
-    def command(self, *args, **kwargs):
-        # Extract aliases if provided
-        aliases = kwargs.pop("aliases", [])
-        decorator = super(AliasedGroup, self).command(*args, **kwargs)
-        def new_decorator(f):
-            cmd = decorator(f)
-            cmd.aliases = aliases
-            return cmd
-        return new_decorator
-
-@click.group(cls=AliasedGroup, invoke_without_command=True)
+@click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
     """Train or cross-validate a model on CIFAR-10."""
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-@cli.command(name='train', aliases=['-t'], help='Train the model on full dataset')
+@cli.command(name='train', help='Train the model on full dataset')
 def train():
     """Train the model on full dataset."""
     print("\nTraining on full dataset...")
@@ -55,12 +33,12 @@ def train():
     train_loader = DataLoader(train_dataset, shuffle=True, **conf.DATALOADER)
     val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
 
-    history = pipeline.train(
+    pipeline.train(
         train_loader=train_loader,
         val_loader=val_loader
     )
 
-@cli.command(name='crossval', aliases=['-c'], help='Run cross-validation')
+@cli.command(name='crossval', help='Run cross-validation')
 def crossval():
     """Run cross-validation."""
     print("\nStarting cross-validation...")
@@ -68,9 +46,9 @@ def crossval():
     model = conf.get_model()()  # Instantiate the model
     pipeline = Pipeline(model)
 
-    fold_results = pipeline.cross_validate(dataset)
+    pipeline.cross_validate(dataset)
 
-@cli.command(name='pdf', aliases=['-p'], help='Generate PDF of test images')
+@cli.command(name='pdf', help='Generate PDF of test images')
 def generate_pdf():
     """Generate PDF of test images."""
     print("\nGenerating PDF of test images...")
@@ -85,7 +63,7 @@ def generate_pdf():
     except Exception as e:
         print(f"Error generating PDF: {e}")
 
-@cli.command(name='train-pdf', aliases=['-tp'], help='Generate PDF of training images (batch 1)')
+@cli.command(name='train-pdf', help='Generate PDF of training images (batch 1)')
 def generate_train_pdf():
     """Generate PDF of training images (batch 1)."""
     print("\nGenerating PDF of training images (batch 1)...")
@@ -102,7 +80,7 @@ def generate_train_pdf():
     except Exception as e:
         print(f"Error generating PDF: {e}")
 
-@cli.command(name='benchmark', aliases=['-b'], help='Run dataloader benchmark')
+@cli.command(name='benchmark', help='Run dataloader benchmark')
 def benchmark():
     """Run dataloader benchmark."""
     print("\nRunning dataloader benchmark...")
@@ -112,7 +90,7 @@ def benchmark():
     except Exception as e:
         print(f"Error running benchmark: {e}")
 
-@cli.command(name='normalize', aliases=['-n'], help='Update normalization values')
+@cli.command(name='normalize', help='Update normalization values')
 def normalize():
     """Update normalization values."""
     print("\nUpdating normalization values...")
@@ -122,7 +100,7 @@ def normalize():
     except Exception as e:
         print(f"Error updating normalization values: {e}")
 
-@cli.command(name='list-sessions', aliases=['-l'], help='List recent training/cross-validation sessions')
+@cli.command(name='list-sessions', help='List recent training/cross-validation sessions')
 @click.option('--model', help='Filter sessions by model name')
 @click.option('--type', type=click.Choice(['training', 'crossval']), help='Filter sessions by type')
 @click.option('--limit', type=int, default=10, help='Maximum number of sessions to list')
@@ -152,13 +130,24 @@ def list_sessions(model, type, limit):
             if 'avg_val_acc' in metrics:
                 print(f"   Avg CV Accuracy: {metrics['avg_val_acc']*100:.2f}%")
         if 'files' in data:
-            files = data['files']
             print("   Files:")
-            for file_type, file_path in files.items():
+            for file_type, file_path in data['files'].items():
                 print(f"     - {file_type}: {file_path}")
 
 def main():
-    """Main function to run the CLI."""
+    # Manual alias mapping for dash-style aliases.
+    alias_mapping = {
+        '-t': 'train',
+        '-c': 'crossval',
+        '-p': 'pdf',
+        '-tp': 'train-pdf',
+        '-b': 'benchmark',
+        '-n': 'normalize',
+        '-l': 'list-sessions'
+    }
+    # If the first argument is a dash alias, replace it with its full command name.
+    if len(sys.argv) > 1 and sys.argv[1] in alias_mapping:
+        sys.argv[1] = alias_mapping[sys.argv[1]]
     cli()
 
 if __name__ == "__main__":
