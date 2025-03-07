@@ -20,13 +20,6 @@ SCRIPTS_OUTPUT_DIR = 'scripts/outputs'
 PREDICTIONS_DIR = 'predictions'
 TRACKING_DIR = 'tracking'  # New directory for JSON tracking files
 
-# Create directories
-os.makedirs(WEIGHTS_DIR, exist_ok=True)
-os.makedirs(GRAPHS_DIR, exist_ok=True)
-os.makedirs(SCRIPTS_OUTPUT_DIR, exist_ok=True)
-os.makedirs(PREDICTIONS_DIR, exist_ok=True)
-os.makedirs(TRACKING_DIR, exist_ok=True)
-
 # Dataset parameters
 NUM_CLASSES = 10
 IMAGE_SIZE = 32

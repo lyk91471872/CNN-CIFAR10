@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Optional, Union
 import os
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
-from config import GRAPHS_DIR, CIFAR10_CLASSES
+import config as conf
 from utils.session import get_session_filename
 
 def plot_training_history(history: Dict[str, List[float]], model=None, epoch=None, accuracy=None, save_path: Optional[str] = None) -> None:
@@ -21,18 +21,18 @@ def plot_training_history(history: Dict[str, List[float]], model=None, epoch=Non
     """
     
     if save_path is None and model is not None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
         save_path = get_session_filename(
             model, 
             epoch=epoch, 
             accuracy=accuracy, 
             prefix="history", 
             extension="png", 
-            directory=GRAPHS_DIR
+            directory=conf.GRAPHS_DIR
         )
     elif save_path is None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
-        save_path = os.path.join(GRAPHS_DIR, 'training_history.png')
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
+        save_path = os.path.join(conf.GRAPHS_DIR, 'training_history.png')
         
     # Create the figure with 2 subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
@@ -84,18 +84,18 @@ def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None,
     """
     
     if save_path is None and model is not None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
         save_path = get_session_filename(
             model, 
             epoch=epoch, 
             accuracy=accuracy, 
             prefix="confusion", 
             extension="png", 
-            directory=GRAPHS_DIR
+            directory=conf.GRAPHS_DIR
         )
     elif save_path is None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
-        save_path = os.path.join(GRAPHS_DIR, 'confusion_matrix.png')
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
+        save_path = os.path.join(conf.GRAPHS_DIR, 'confusion_matrix.png')
     
     # Convert to numpy arrays if needed
     if isinstance(y_true, torch.Tensor):
@@ -113,7 +113,7 @@ def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None,
     # Plot the confusion matrix
     plt.figure(figsize=(10, 8))
     sns.heatmap(cm, annot=True, fmt='.2f' if normalize else 'd', 
-                cmap='Blues', xticklabels=CIFAR10_CLASSES, yticklabels=CIFAR10_CLASSES)
+                cmap='Blues', xticklabels=conf.CIFAR10_CLASSES, yticklabels=conf.CIFAR10_CLASSES)
     plt.xlabel('Predicted')
     plt.ylabel('True')
     
@@ -150,7 +150,7 @@ def plot_crossval_history(fold_results: List[Dict], model=None, save_path: Optio
     """
     
     if save_path is None and model is not None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
         
         # Calculate average validation accuracy
         best_val_accs = [result['best_val_acc'] for result in fold_results]
@@ -161,11 +161,11 @@ def plot_crossval_history(fold_results: List[Dict], model=None, save_path: Optio
             accuracy=avg_val_acc, 
             prefix="crossval", 
             extension="png", 
-            directory=GRAPHS_DIR
+            directory=conf.GRAPHS_DIR
         )
     elif save_path is None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
-        save_path = os.path.join(GRAPHS_DIR, 'crossval_history.png')
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
+        save_path = os.path.join(conf.GRAPHS_DIR, 'crossval_history.png')
     
     # Create averaged history
     avg_history = {}
@@ -231,7 +231,7 @@ def plot_crossval_confusion_matrices(fold_results, model=None, save_path=None):
     """
     
     if save_path is None and model is not None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
         
         # Calculate average validation accuracy
         best_val_accs = [result['best_val_acc'] for result in fold_results]
@@ -242,11 +242,11 @@ def plot_crossval_confusion_matrices(fold_results, model=None, save_path=None):
             accuracy=avg_val_acc, 
             prefix="crossval_confusion", 
             extension="png", 
-            directory=GRAPHS_DIR
+            directory=conf.GRAPHS_DIR
         )
     elif save_path is None:
-        os.makedirs(GRAPHS_DIR, exist_ok=True)
-        save_path = os.path.join(GRAPHS_DIR, 'crossval_confusion_matrices.png')
+        os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
+        save_path = os.path.join(conf.GRAPHS_DIR, 'crossval_confusion_matrices.png')
     
     # Calculate number of folds
     n_folds = len(fold_results)
@@ -278,8 +278,8 @@ def plot_crossval_confusion_matrices(fold_results, model=None, save_path=None):
         
         # Plot on the corresponding subplot
         sns.heatmap(cm_norm, annot=True, fmt='.2f', cmap='Blues', 
-                    xticklabels=CIFAR10_CLASSES if i == n_folds-1 else [], 
-                    yticklabels=CIFAR10_CLASSES if i % 2 == 0 else [],
+                    xticklabels=conf.CIFAR10_CLASSES if i == n_folds-1 else [], 
+                    yticklabels=conf.CIFAR10_CLASSES if i % 2 == 0 else [],
                     ax=axes[i])
         axes[i].set_title(f"Fold {result['fold']} - Acc: {result['best_val_acc']*100:.2f}%")
         axes[i].set_xlabel('Predicted' if i >= n_folds - 2 else '')
@@ -291,7 +291,7 @@ def plot_crossval_confusion_matrices(fold_results, model=None, save_path=None):
         combined_cm_norm = combined_cm.astype('float') / combined_cm.sum(axis=1)[:, np.newaxis]
         
         sns.heatmap(combined_cm_norm, annot=True, fmt='.2f', cmap='Blues',
-                    xticklabels=CIFAR10_CLASSES, yticklabels=CIFAR10_CLASSES if n_folds % 2 == 0 else [],
+                    xticklabels=conf.CIFAR10_CLASSES, yticklabels=conf.CIFAR10_CLASSES if n_folds % 2 == 0 else [],
                     ax=axes[n_folds])
         axes[n_folds].set_title(f"Average Across {n_folds} Folds")
         axes[n_folds].set_xlabel('Predicted')

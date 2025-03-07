@@ -4,9 +4,20 @@ import glob
 import datetime
 from typing import Optional, Dict, List, Any
 
-# Import needed directories and configuration from config
-from config import TRACKING_DIR, WEIGHTS_DIR, GRAPHS_DIR, RESULTS_DIR
-from config import OPTIMIZER, SCHEDULER, TRAIN
+# Import config
+import config as conf
+
+# Create necessary directories
+def ensure_directories_exist():
+    """Create all necessary directories for storing artifacts."""
+    os.makedirs(conf.WEIGHTS_DIR, exist_ok=True)
+    os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
+    os.makedirs(conf.SCRIPTS_OUTPUT_DIR, exist_ok=True)
+    os.makedirs(conf.PREDICTIONS_DIR, exist_ok=True)
+    os.makedirs(conf.TRACKING_DIR, exist_ok=True)
+
+# Create directories when module is imported
+ensure_directories_exist()
 
 def get_session_filename(model, epoch=None, accuracy=None, prefix=None, extension=None, directory=None):
     """
@@ -81,9 +92,9 @@ class SessionTracker:
             "session_type": session_type,
             "timestamp": self.timestamp,
             "config": {
-                "optimizer": OPTIMIZER,
-                "scheduler": SCHEDULER,
-                "training": TRAIN,
+                "optimizer": conf.OPTIMIZER,
+                "scheduler": conf.SCHEDULER,
+                "training": conf.TRAIN,
                 "model_params": model.get_config() if hasattr(model, 'get_config') else {}
             },
             "metrics": {},
@@ -103,7 +114,7 @@ class SessionTracker:
     def save(self):
         """Save the session data to a JSON file."""
         filename = f"{self.session_id}.json"
-        filepath = os.path.join(TRACKING_DIR, filename)
+        filepath = os.path.join(conf.TRACKING_DIR, filename)
         
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -133,13 +144,13 @@ class SessionTracker:
     def list_sessions(model_name=None, session_type=None, limit=10):
         """List all sessions, optionally filtered by model and session type."""
         # Create tracking directory if it doesn't exist
-        os.makedirs(TRACKING_DIR, exist_ok=True)
+        os.makedirs(conf.TRACKING_DIR, exist_ok=True)
         
         sessions = []
         
-        for filename in os.listdir(TRACKING_DIR):
+        for filename in os.listdir(conf.TRACKING_DIR):
             if filename.endswith('.json'):
-                filepath = os.path.join(TRACKING_DIR, filename)
+                filepath = os.path.join(conf.TRACKING_DIR, filename)
                 try:
                     session = SessionTracker.load(filepath)
                     
