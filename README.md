@@ -98,7 +98,7 @@ The main.py script provides several operation modes through command-line argumen
 | `-t, --train` | Train the model on full dataset |
 | `-c, --crossval` | Run cross-validation |
 | `-p, --pdf` | Generate PDF of test images |
-| `-d, --benchmark` | Run dataloader benchmark |
+| `-b, --benchmark` | Run dataloader benchmark |
 | `-n, --normalize` | Update normalization values |
 
 ### Training a Model
@@ -148,7 +148,7 @@ This will create a PDF with all test images, organized in a grid with their IDs.
 To find the optimal DataLoader configuration:
 
 ```bash
-python main.py -d
+python main.py -b
 ```
 
 This will test various combinations of batch sizes and worker counts to find the most efficient configuration for your hardware.

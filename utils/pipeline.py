@@ -7,7 +7,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torchsummary import summary
 from tqdm import tqdm
 from typing import Dict, List, Tuple
-import pandas as pd
 import numpy as np
 
 import config as conf
@@ -42,12 +41,12 @@ class Pipeline:
 
             # Mixup augmentation
             if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
-                aug_inputs, targets_a, targets_b, lam = mixup_data(
-                    aug_inputs, targets, conf.TRAIN['mixup_alpha']
+                inputs, targets_a, targets_b, lam = mixup_data(
+                    inputs, targets, conf.TRAIN['mixup_alpha']
                 )
 
             self.optimizer.zero_grad()
-            outputs = self.model(aug_inputs)
+            outputs = self.model(inputs)
 
             # Calculate loss
             if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
