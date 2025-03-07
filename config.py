@@ -94,7 +94,7 @@ TRAIN = {
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'no_augmentation_epochs': 5,
-    'min_save_epoch': 10  # Don't save weights until at least 10 epochs have completed
+    'min_save_epoch': 20  # Don't save weights until at least 10 epochs have completed
 }
 
 # Data paths
