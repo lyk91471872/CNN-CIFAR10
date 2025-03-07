@@ -18,16 +18,16 @@ class Pipeline:
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
-        
+
         # Store initial learning rate for warmup
         self.initial_lr = conf.OPTIMIZER['lr']
-        
+
         # Create the optimizer
         self.optimizer = optim.SGD(self.model.parameters(), **conf.OPTIMIZER)
-        
+
         # Create scheduler
         self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
-        
+
         # Early stopping
         self.early_stopping = EarlyStopping(
             patience=conf.TRAIN['early_stopping_patience'],
@@ -104,8 +104,9 @@ class Pipeline:
 
         with torch.no_grad():
             for aug_inputs, clean_inputs, targets in val_loader:
-                clean_inputs, targets = clean_inputs.to(self.device), targets.to(self.device)
-                outputs = self.model(clean_inputs)
+                inputs = aug_inputs     # try use aug for val
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)
 
                 val_loss += loss.item()
@@ -138,28 +139,28 @@ class Pipeline:
         best_val_loss = float('inf')
         best_model_state = None
         completed_epochs = 0
-        
+
         pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
         for epoch in pbar:
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
             self._warmup_learning_rate(epoch)
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.val_one_epoch(val_loader)
-            
+
             # Only use scheduler after warmup period
             if epoch >= conf.TRAIN.get('warmup_epochs', 0):
                 self.scheduler.step(val_loss)
-            
+
             self.early_stopping(val_loss)  # Early stopping based on validation loss
-            
+
             completed_epochs = epoch + 1  # Keep track of completed epochs
-            
+
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 # Save the model state dictionary (not to disk yet)
                 best_model_state = self.model.state_dict().copy()
                 print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}")
-            
+
             if self.early_stopping.early_stop:
                 print("Early stopping triggered")
                 break
@@ -175,7 +176,7 @@ class Pipeline:
                 'val_loss': f'{val_loss:.2f}',
                 'val_acc': f'{val_acc:.2f}%'
             })
-        
+
         # After training is complete, load the best model state and save it
         if should_save and best_model_state is not None:
             # Load the best model state
