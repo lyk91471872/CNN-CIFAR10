@@ -2,7 +2,6 @@ import os
 import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.transforms import AutoAugment, AutoAugmentPolicy
 from pathlib import Path
 
 # Base directory paths
