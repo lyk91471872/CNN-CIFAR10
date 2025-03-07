@@ -35,7 +35,7 @@ class BasicBlock(nn.Module):
         out = self.silu(out)
         return out
 
-class CustomResNet18(nn.Module):
+class CustomResNet18(BaseModel):
     def __init__(self, num_classes=10):
         super(CustomResNet18, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
