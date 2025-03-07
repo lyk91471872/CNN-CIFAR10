@@ -69,18 +69,19 @@ def plot_training_history(history: Dict[str, List[float]], model=None, epoch=Non
     
     return save_path
 
-def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None, save_path=None, normalize=True):
+def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None, save_path=None, normalize=True, confusion_matrix=None):
     """
     Plot confusion matrix for classification results.
     
     Args:
-        y_true: Ground truth labels (list or numpy array)
-        y_pred: Predicted labels (list or numpy array)
+        y_true: Ground truth labels (not used if confusion_matrix is provided)
+        y_pred: Predicted labels (not used if confusion_matrix is provided)
         model: Model object (for generating filename)
         epoch: Number of epochs trained (for filename)
         accuracy: Validation accuracy (for filename)
         save_path: Path to save the plot. If None, uses session-based filename
         normalize: Whether to normalize the confusion matrix (default: True)
+        confusion_matrix: Pre-computed confusion matrix (optional)
     """
     
     if save_path is None and model is not None:
@@ -97,14 +98,18 @@ def plot_confusion_matrix(y_true, y_pred, model=None, epoch=None, accuracy=None,
         os.makedirs(conf.GRAPHS_DIR, exist_ok=True)
         save_path = os.path.join(conf.GRAPHS_DIR, 'confusion_matrix.png')
     
-    # Convert to numpy arrays if needed
-    if isinstance(y_true, torch.Tensor):
-        y_true = y_true.cpu().numpy()
-    if isinstance(y_pred, torch.Tensor):
-        y_pred = y_pred.cpu().numpy()
-    
-    # Compute confusion matrix
-    cm = confusion_matrix(y_true, y_pred)
+    # Use provided confusion matrix or compute it from labels
+    if confusion_matrix is not None:
+        cm = confusion_matrix
+    else:
+        # Convert to numpy arrays if needed
+        if isinstance(y_true, torch.Tensor):
+            y_true = y_true.cpu().numpy()
+        if isinstance(y_pred, torch.Tensor):
+            y_pred = y_pred.cpu().numpy()
+        
+        # Compute confusion matrix
+        cm = confusion_matrix(y_true, y_pred)
     
     # Normalize if requested
     if normalize:
