@@ -21,6 +21,7 @@ def parse_args():
     group.add_argument('-t', '--train', action='store_true', help='Train the model on full dataset')
     group.add_argument('-c', '--crossval', action='store_true', help='Run cross-validation')
     group.add_argument('-p', '--pdf', action='store_true', help='Generate PDF of test images')
+    group.add_argument('-tp', '--train-pdf', action='store_true', help='Generate PDF of training images (batch 1)')
     group.add_argument('-d', '--benchmark', action='store_true', help='Run dataloader benchmark')
     group.add_argument('-n', '--normalize', action='store_true', help='Update normalization values')
     
@@ -39,6 +40,23 @@ def main():
             output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "test_images_raw.pdf")
             test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test', raw=True)
             testset_to_pdf(test_dataset, output_pdf_path, use_grayscale=False)
+            
+            print(f"PDF generated successfully: {output_pdf_path}")
+        except Exception as e:
+            print(f"Error generating PDF: {e}")
+        return
+
+    # Handle training PDF generation (early return)
+    if args.train_pdf:
+        print("\nGenerating PDF of training images (batch 1)...")
+        try:
+            from scripts.trainingset2pdf import CIFAR10TrainingDatasetRaw, trainingset_to_pdf
+            
+            training_batch_path = os.path.join(conf.DATA_DIR, 'data_batch_1')
+            output_pdf_path = os.path.join(conf.SCRIPTS_OUTPUT_DIR, "training_images.pdf")
+            
+            training_dataset = CIFAR10TrainingDatasetRaw(training_batch_path)
+            trainingset_to_pdf(training_dataset, output_pdf_path, use_grayscale=False)
             
             print(f"PDF generated successfully: {output_pdf_path}")
         except Exception as e:
