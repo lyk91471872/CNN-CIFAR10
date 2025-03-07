@@ -88,8 +88,8 @@ SCHEDULER = {
 
 # Training parameters
 TRAIN = {
-    'epochs': 100,
-    'early_stopping_patience': 10,
+    'epochs': 150,
+    'early_stopping_patience': 20,
     'early_stopping_min_delta': 0.001,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
