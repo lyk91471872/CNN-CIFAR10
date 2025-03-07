@@ -3,70 +3,56 @@ import json
 import glob
 import datetime
 from typing import Optional, Dict, List, Any
-from pathlib import Path
 
-# Define paths - avoid importing from config to prevent circular imports
-ROOT_DIR = Path(__file__).resolve().parent.parent
-TRACKING_DIR = os.path.join(ROOT_DIR, 'tracking')
-WEIGHTS_DIR = os.path.join(ROOT_DIR, 'weights')
-GRAPHS_DIR = os.path.join(ROOT_DIR, 'graphs')
-RESULTS_DIR = os.path.join(ROOT_DIR, 'results')
-PREDICTIONS_DIR = os.path.join(ROOT_DIR, 'predictions')
-
-# Make sure these directories exist
-os.makedirs(TRACKING_DIR, exist_ok=True)
-os.makedirs(WEIGHTS_DIR, exist_ok=True)
-os.makedirs(GRAPHS_DIR, exist_ok=True)
-os.makedirs(RESULTS_DIR, exist_ok=True)
-os.makedirs(PREDICTIONS_DIR, exist_ok=True)
+# Import needed directories and configuration from config
+from config import TRACKING_DIR, WEIGHTS_DIR, GRAPHS_DIR, RESULTS_DIR
+from config import OPTIMIZER, SCHEDULER, TRAIN
 
 def get_session_filename(model, epoch=None, accuracy=None, prefix=None, extension=None, directory=None):
     """
-    Generate a consistent filename for all artifacts from a training/validation session.
+    Get a filename for a session-based artifact.
     
     Args:
-        model: The model object or name
+        model: The model being trained
         epoch: Number of epochs trained
-        accuracy: Validation accuracy (0-1 range)
+        accuracy: Validation accuracy
         prefix: Optional prefix to add to the filename
         extension: File extension (without dot)
-        directory: Optional directory path
+        directory: Directory to save the file in
         
     Returns:
-        The full path to the file
+        Full path to the file
     """
-    # Get model name
+    # Get base name
     if hasattr(model, '__class__'):
         model_name = model.__class__.__name__
     else:
         # Handle case where model is a string
         model_name = str(model).split('(')[0]
     
-    # Format accuracy if provided
-    acc_str = ""
-    if accuracy is not None:
-        acc_str = f"_A{int(100 * accuracy)}"
-    
-    # Format epoch if provided
-    epoch_str = ""
-    if epoch is not None:
-        epoch_str = f"_E{epoch}"
-    
-    # Generate timestamp
+    # Generate timestamp part
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     
     # Build filename
-    filename = f"{model_name}{epoch_str}{acc_str}_{timestamp}"
-    
-    # Add prefix if provided
+    parts = []
     if prefix:
-        filename = f"{prefix}_{filename}"
+        parts.append(prefix)
+        
+    parts.append(model_name)
     
-    # Add extension if provided
+    if epoch is not None:
+        parts.append(f"E{epoch}")
+        
+    if accuracy is not None:
+        parts.append(f"A{int(100*accuracy)}")
+        
+    parts.append(timestamp)
+    
+    filename = "_".join(parts)
     if extension:
         filename = f"{filename}.{extension}"
-    
-    # Return full path if directory is provided
+        
+    # Return full path if directory provided
     if directory:
         os.makedirs(directory, exist_ok=True)
         return os.path.join(directory, filename)
@@ -75,7 +61,7 @@ def get_session_filename(model, epoch=None, accuracy=None, prefix=None, extensio
 
 
 class SessionTracker:
-    """Class to handle tracking training/validation sessions with JSON."""
+    """Tracks training and cross-validation sessions, saving data to JSON files."""
     
     def __init__(self, model, session_type="training"):
         """Initialize a new session tracker.
@@ -95,25 +81,14 @@ class SessionTracker:
             "session_type": session_type,
             "timestamp": self.timestamp,
             "config": {
+                "optimizer": OPTIMIZER,
+                "scheduler": SCHEDULER,
+                "training": TRAIN,
                 "model_params": model.get_config() if hasattr(model, 'get_config') else {}
             },
             "metrics": {},
             "files": {}
         }
-        
-        # Import config values only when needed, not at module level
-        try:
-            # Import only when needed to avoid circular imports
-            import config as conf
-            # Add configuration details if available
-            self.data["config"].update({
-                "optimizer": getattr(conf, 'OPTIMIZER', {}),
-                "scheduler": getattr(conf, 'SCHEDULER', {}),
-                "training": getattr(conf, 'TRAIN', {})
-            })
-        except ImportError:
-            # If config can't be imported, proceed without those values
-            pass
     
     def add_metrics(self, metrics):
         """Add metrics to the session data."""
@@ -141,41 +116,50 @@ class SessionTracker:
     
     @staticmethod
     def load(filepath):
-        """Load session data from a JSON file."""
+        """Load a session from a JSON file."""
         with open(filepath, 'r') as f:
             data = json.load(f)
         
-        # Create a new SessionTracker and fill it with loaded data
-        tracker = SessionTracker.__new__(SessionTracker)
-        tracker.data = data
-        tracker.model_name = data["model_name"]
-        tracker.session_type = data["session_type"]
-        tracker.timestamp = data["timestamp"]
-        tracker.session_id = os.path.splitext(os.path.basename(filepath))[0]
+        session = SessionTracker.__new__(SessionTracker)
+        session.data = data
+        session.model_name = data["model_name"]
+        session.session_type = data["session_type"]
+        session.timestamp = data["timestamp"]
+        session.session_id = os.path.splitext(os.path.basename(filepath))[0]
         
-        return tracker
+        return session
     
     @staticmethod
     def list_sessions(model_name=None, session_type=None, limit=10):
-        """List available sessions, optionally filtered by model name and/or type."""
+        """List all sessions, optionally filtered by model and session type."""
+        # Create tracking directory if it doesn't exist
+        os.makedirs(TRACKING_DIR, exist_ok=True)
+        
         sessions = []
         
         for filename in os.listdir(TRACKING_DIR):
             if filename.endswith('.json'):
                 filepath = os.path.join(TRACKING_DIR, filename)
                 try:
-                    tracker = SessionTracker.load(filepath)
+                    session = SessionTracker.load(filepath)
                     
-                    # Apply filters
-                    if model_name and tracker.data["model_name"] != model_name:
+                    # Filter by model_name if specified
+                    if model_name and session.model_name != model_name:
                         continue
-                    if session_type and tracker.data["session_type"] != session_type:
+                        
+                    # Filter by session_type if specified
+                    if session_type and session.session_type != session_type:
                         continue
-                    
-                    sessions.append(tracker)
+                        
+                    sessions.append(session)
                 except Exception as e:
-                    print(f"Error loading session from {filename}: {e}")
+                    print(f"Error loading session from {filepath}: {e}")
         
-        # Sort by timestamp (newest first) and limit results
-        sessions.sort(key=lambda x: x.data["timestamp"], reverse=True)
-        return sessions[:limit]
+        # Sort by timestamp (newest first)
+        sessions.sort(key=lambda s: s.data["timestamp"], reverse=True)
+        
+        # Limit number of results
+        if limit:
+            sessions = sessions[:limit]
+                
+        return sessions

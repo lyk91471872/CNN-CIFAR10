@@ -111,3 +111,9 @@ def get_model():
     """
     from models import CustomEfficientNetV2_B0, CustomResNet18
     return CustomEfficientNetV2_B0  # Change this to use a different model
+
+# CIFAR-10 class names
+CIFAR10_CLASSES = [
+    'airplane', 'automobile', 'bird', 'cat', 'deer',
+    'dog', 'frog', 'horse', 'ship', 'truck'
+]
