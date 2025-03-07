@@ -19,6 +19,7 @@ def init_db():
         model_name TEXT NOT NULL,
         weights_file TEXT UNIQUE NOT NULL,
         timestamp TEXT NOT NULL,
+        epochs INTEGER,
         config TEXT NOT NULL
     )
     ''')
@@ -52,13 +53,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def record_model_run(model, weights_file, config_dict):
+def record_model_run(model, weights_file, config_dict, epochs=None):
     """Record a model run in the database.
     
     Args:
         model: The model instance or class
         weights_file: Path to the saved weights file
         config_dict: Dictionary containing model configuration
+        epochs: Number of epochs the model was trained for
     
     Returns:
         int: The ID of the inserted record
@@ -72,8 +74,8 @@ def record_model_run(model, weights_file, config_dict):
     config_json = json.dumps(config_dict, default=str)
     
     cursor.execute(
-        'INSERT INTO model_runs (model_name, weights_file, timestamp, config) VALUES (?, ?, ?, ?)',
-        (model_name, weights_file, timestamp, config_json)
+        'INSERT INTO model_runs (model_name, weights_file, timestamp, epochs, config) VALUES (?, ?, ?, ?, ?)',
+        (model_name, weights_file, timestamp, epochs, config_json)
     )
     
     run_id = cursor.lastrowid

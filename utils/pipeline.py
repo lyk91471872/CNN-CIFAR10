@@ -113,6 +113,9 @@ class Pipeline:
         }
 
         best_val_loss = float('inf')
+        best_model_state = None
+        completed_epochs = 0
+        
         pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
         for epoch in pbar:
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
@@ -120,16 +123,18 @@ class Pipeline:
             val_loss, val_acc = self.val_one_epoch(val_loader)
             self.scheduler.step(val_loss)
             self.early_stopping(val_loss)  # Early stopping based on validation loss
+            
+            completed_epochs = epoch + 1  # Keep track of completed epochs
+            
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                # Save the model state dictionary (not to disk yet)
+                best_model_state = self.model.state_dict().copy()
+                print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}")
+                
             if self.early_stopping.early_stop:
                 print("Early stopping triggered")
                 break
-
-            # Only save if we've completed the minimum number of epochs and have a better validation loss
-            can_save = should_save and epoch >= conf.TRAIN.get('min_save_epoch', 0)
-            if can_save and val_loss < best_val_loss:
-                best_val_loss = val_loss
-                self.model.save()
-                print(f"Epoch {epoch+1}: Saved model with validation loss {val_loss:.4f}")
 
             history['train_losses'].append(train_loss)
             history['val_losses'].append(val_loss)
@@ -142,6 +147,14 @@ class Pipeline:
                 'val_loss': f'{val_loss:.2f}',
                 'val_acc': f'{val_acc:.2f}%'
             })
+        
+        # After training is complete, load the best model state and save it
+        if should_save and best_model_state is not None:
+            # Load the best model state
+            self.model.load_state_dict(best_model_state)
+            # Save the best model to disk with the number of epochs
+            self.model.save(epochs=completed_epochs)
+            print(f"Training completed after {completed_epochs} epochs. Best model saved with validation loss {best_val_loss:.4f}")
 
         return history
 

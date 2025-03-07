@@ -11,11 +11,12 @@ class BaseModel(nn.Module):
         # Default weight path will now use the timestamped filename
         self.weight_path = None  # Will be set on save()
         
-    def save(self, path: str = None) -> None:
+    def save(self, path: str = None, epochs: int = None) -> None:
         """Save model weights to the specified path or default path.
         
         Args:
             path: Optional full path to save the model. If None, generates timestamped path.
+            epochs: Number of epochs the model was trained for.
         """
         if path is None:
             # Generate timestamped filename
@@ -37,7 +38,7 @@ class BaseModel(nn.Module):
                 'scheduler': conf.SCHEDULER,
                 'training': conf.TRAIN,
             }
-            record_model_run(self, path, config_dict)
+            record_model_run(self, path, config_dict, epochs)
         except Exception as e:
             print(f"Warning: Failed to record model in database: {e}")
         
