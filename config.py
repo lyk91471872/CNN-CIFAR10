@@ -57,8 +57,10 @@ BASE_TRANSFORM = transforms.Compose([
 #     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
 # ])
 
-# Use AutoAugment for CIFAR10
+# Use AutoAugment with additional basic augmentations
 TRANSFORM = transforms.Compose([
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
     transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
 ])
 
@@ -71,30 +73,37 @@ DATALOADER = {
     'prefetch_factor': 32
 }
 
-# Optimizer parameters
+# Optimizer settings tuned to address underfitting:
+# - Higher learning rate to escape local minima
+# - Stronger regularization with higher weight decay
+# - Learning rate warmup for stability
+# - More gradual learning rate decay with higher patience
+# - Enhanced data augmentation to improve generalization
 OPTIMIZER = {
-    'lr': 0.01,
-    'weight_decay': 1e-4,
+    'lr': 0.05,  # Increased from 0.01 to help escape local minima
+    'weight_decay': 5e-4,  # Increased regularization slightly
     'momentum': 0.9
 }
 
 # Scheduler parameters
 SCHEDULER = {
     'mode': 'min',
-    'factor': 0.1,
-    'patience': 5,
-    'min_lr': 1e-4
+    'factor': 0.5,
+    'patience': 10,
+    'min_lr': 1e-5,
+    'verbose': True
 }
 
 # Training parameters
 TRAIN = {
-    'epochs': 150,
-    'early_stopping_patience': 20,
-    'early_stopping_min_delta': 0.001,
+    'epochs': 200,
+    'early_stopping_patience': 30,
+    'early_stopping_min_delta': 0.0005,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'no_augmentation_epochs': 5,
-    'min_save_epoch': 20  # Don't save weights until at least 10 epochs have completed
+    'min_save_epoch': 10,
+    'warmup_epochs': 5
 }
 
 # Data paths

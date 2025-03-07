@@ -18,8 +18,17 @@ class Pipeline:
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
+        
+        # Store initial learning rate for warmup
+        self.initial_lr = conf.OPTIMIZER['lr']
+        
+        # Create the optimizer
         self.optimizer = optim.SGD(self.model.parameters(), **conf.OPTIMIZER)
+        
+        # Create scheduler
         self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
+        
+        # Early stopping
         self.early_stopping = EarlyStopping(
             patience=conf.TRAIN['early_stopping_patience'],
             delta=conf.TRAIN['early_stopping_min_delta'],
@@ -27,6 +36,20 @@ class Pipeline:
         )
         self.use_augmentation = False
         summary(self.model, (3, 32, 32))
+
+    def _warmup_learning_rate(self, epoch):
+        """Apply linear warmup to learning rate during initial epochs."""
+        if epoch < conf.TRAIN.get('warmup_epochs', 0):
+            # Linear warmup from 10% to 100% of base learning rate
+            warmup_factor = 0.1 + 0.9 * epoch / conf.TRAIN.get('warmup_epochs', 1)
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = self.initial_lr * warmup_factor
+            print(f"Warmup epoch {epoch+1}: LR = {self.initial_lr * warmup_factor:.6f}")
+        elif epoch == conf.TRAIN.get('warmup_epochs', 0):
+            # Reset to initial learning rate after warmup
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = self.initial_lr
+            print(f"Warmup complete: LR = {self.initial_lr:.6f}")
 
     def train_one_epoch(self, train_loader: DataLoader) -> Tuple[float, float]:
         """Train for one epoch and return loss and accuracy."""
@@ -119,9 +142,14 @@ class Pipeline:
         pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
         for epoch in pbar:
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
+            self._warmup_learning_rate(epoch)
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc = self.val_one_epoch(val_loader)
-            self.scheduler.step(val_loss)
+            
+            # Only use scheduler after warmup period
+            if epoch >= conf.TRAIN.get('warmup_epochs', 0):
+                self.scheduler.step(val_loss)
+            
             self.early_stopping(val_loss)  # Early stopping based on validation loss
             
             completed_epochs = epoch + 1  # Keep track of completed epochs
@@ -131,7 +159,7 @@ class Pipeline:
                 # Save the model state dictionary (not to disk yet)
                 best_model_state = self.model.state_dict().copy()
                 print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}")
-                
+            
             if self.early_stopping.early_stop:
                 print("Early stopping triggered")
                 break
