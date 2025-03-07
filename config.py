@@ -1,17 +1,22 @@
+# Standard library
 import os
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
-from torchvision import transforms
-from torchvision.transforms import AutoAugment, AutoAugmentPolicy
-import datetime
-from pathlib import Path
 import json
+import datetime
+from typing import Dict, List, Optional
+
+# Third-party
+import torch
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+
+# Local application
+from utils.session import SessionTracker, get_session_filename
+import config as conf
 
 # Base directory paths
-ROOT_DIR = Path(__file__).resolve().parent
-RESULTS_DIR = ROOT_DIR / 'results'  # New central location for all results
+ROOT_DIR = conf.ROOT_DIR
+RESULTS_DIR = conf.RESULTS_DIR  # New central location for all results
 
 # Directory paths
 WEIGHTS_DIR = 'weights'
@@ -27,6 +32,152 @@ os.makedirs(SCRIPTS_OUTPUT_DIR, exist_ok=True)
 os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 os.makedirs(TRACKING_DIR, exist_ok=True)
 
+# Helper function to generate session-based filenames (replaces get_timestamped_filename)
+def get_session_filename(model, epoch=None, accuracy=None, prefix=None, extension=None, directory=None):
+    """
+    Generate a consistent filename for all artifacts from a training/validation session.
+    
+    Args:
+        model: The model object or name
+        epoch: Number of epochs trained
+        accuracy: Validation accuracy (0-1 range)
+        prefix: Optional prefix to add to the filename
+        extension: File extension (without dot)
+        directory: Optional directory path
+        
+    Returns:
+        The full path to the file
+    """
+    # Get model name
+    if hasattr(model, '__class__'):
+        model_name = model.__class__.__name__
+    else:
+        # Handle case where model is a string
+        model_name = str(model).split('(')[0]
+    
+    # Format accuracy if provided
+    acc_str = ""
+    if accuracy is not None:
+        acc_str = f"_A{int(100 * accuracy)}"
+    
+    # Format epoch if provided
+    epoch_str = ""
+    if epoch is not None:
+        epoch_str = f"_E{epoch}"
+    
+    # Generate timestamp
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Build filename
+    filename = f"{model_name}{epoch_str}{acc_str}_{timestamp}"
+    
+    # Add prefix if provided
+    if prefix:
+        filename = f"{prefix}_{filename}"
+    
+    # Add extension if provided
+    if extension:
+        filename = f"{filename}.{extension}"
+    
+    # Return full path if directory is provided
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+        return os.path.join(directory, filename)
+    
+    return filename
+
+class SessionTracker:
+    """Class to handle tracking training/validation sessions with JSON."""
+    
+    def __init__(self, model, session_type="training"):
+        """Initialize a new session tracker.
+        
+        Args:
+            model: The model being trained/validated
+            session_type: Either "training" or "crossval"
+        """
+        self.model_name = model.__class__.__name__
+        self.session_type = session_type
+        self.timestamp = datetime.datetime.now().isoformat()
+        self.session_id = f"{self.model_name}_{session_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Initialize data structure
+        self.data = {
+            "model_name": self.model_name,
+            "session_type": session_type,
+            "timestamp": self.timestamp,
+            "config": {
+                "optimizer": conf.OPTIMIZER,
+                "scheduler": conf.SCHEDULER,
+                "training": conf.TRAIN,
+                "model_params": model.get_config() if hasattr(model, 'get_config') else {}
+            },
+            "metrics": {},
+            "files": {}
+        }
+    
+    def add_metrics(self, metrics):
+        """Add metrics to the session data."""
+        self.data["metrics"] = {**self.data.get("metrics", {}), **metrics}
+        return self
+    
+    def add_file(self, file_type, file_path):
+        """Add a file reference to the session data."""
+        self.data["files"][file_type] = file_path
+        return self
+    
+    def save(self):
+        """Save the session data to a JSON file."""
+        filename = f"{self.session_id}.json"
+        filepath = os.path.join(TRACKING_DIR, filename)
+        
+        with open(filepath, 'w') as f:
+            json.dump(self.data, f, indent=2)
+        
+        print(f"Session tracking data saved to {filepath}")
+        return filepath
+    
+    @staticmethod
+    def load(filepath):
+        """Load session data from a JSON file."""
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        
+        # Create a new SessionTracker and fill it with loaded data
+        tracker = SessionTracker.__new__(SessionTracker)
+        tracker.data = data
+        tracker.model_name = data["model_name"]
+        tracker.session_type = data["session_type"]
+        tracker.timestamp = data["timestamp"]
+        tracker.session_id = os.path.splitext(os.path.basename(filepath))[0]
+        
+        return tracker
+    
+    @staticmethod
+    def list_sessions(model_name=None, session_type=None, limit=10):
+        """List available sessions, optionally filtered by model name and/or type."""
+        sessions = []
+        
+        for filename in os.listdir(TRACKING_DIR):
+            if filename.endswith('.json'):
+                filepath = os.path.join(TRACKING_DIR, filename)
+                try:
+                    tracker = SessionTracker.load(filepath)
+                    
+                    # Apply filters
+                    if model_name and tracker.data["model_name"] != model_name:
+                        continue
+                    if session_type and tracker.data["session_type"] != session_type:
+                        continue
+                    
+                    sessions.append(tracker)
+                except Exception as e:
+                    print(f"Error loading session from {filename}: {e}")
+        
+        # Sort by timestamp (newest first) and limit results
+        sessions.sort(key=lambda x: x.data["timestamp"], reverse=True)
+        return sessions[:limit]
+
 # Dataset parameters
 NUM_CLASSES = 10
 IMAGE_SIZE = 32
@@ -38,10 +189,7 @@ CIFAR10_MEAN = (0.4914009, 0.48215896, 0.4465308)
 CIFAR10_STD = (0.24703279, 0.24348423, 0.26158753)
 
 # Base transforms (without augmentation)
-BASE_TRANSFORM = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD)
-])
+BASE_TRANSFORM = conf.BASE_TRANSFORM
 
 # Augmentation transforms applied only to training data
 # TRANSFORM = transforms.Compose([
@@ -51,20 +199,10 @@ BASE_TRANSFORM = transforms.Compose([
 # ])
 
 # Use AutoAugment with additional basic augmentations
-TRANSFORM = transforms.Compose([
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-    transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
-])
+TRANSFORM = conf.TRANSFORM
 
 # DataLoader parameters
-DATALOADER = {
-    'batch_size': 512,
-    'num_workers': 32,
-    'pin_memory': True,
-    'persistent_workers': True,
-    'prefetch_factor': 32
-}
+DATALOADER = conf.DATALOADER
 
 # Optimizer settings tuned to address underfitting:
 # - Higher learning rate to escape local minima
@@ -72,32 +210,13 @@ DATALOADER = {
 # - Learning rate warmup for stability
 # - More gradual learning rate decay with higher patience
 # - Enhanced data augmentation to improve generalization
-OPTIMIZER = {
-    'lr': 0.05,  # Increased from 0.01 to help escape local minima
-    'weight_decay': 5e-4,  # Increased regularization slightly
-    'momentum': 0.9
-}
+OPTIMIZER = conf.OPTIMIZER
 
 # Scheduler parameters
-SCHEDULER = {
-    'mode': 'min',
-    'factor': 0.5,
-    'patience': 10,
-    'min_lr': 1e-5,
-    'verbose': True
-}
+SCHEDULER = conf.SCHEDULER
 
 # Training parameters
-TRAIN = {
-    'epochs': 200,
-    'early_stopping_patience': 30,
-    'early_stopping_min_delta': 0.0005,
-    'mixup_alpha': 0.2,
-    'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'no_augmentation_epochs': 5,
-    'min_save_epoch': 10,
-    'warmup_epochs': 5
-}
+TRAIN = conf.TRAIN
 
 # Data paths
 DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'

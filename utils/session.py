@@ -4,17 +4,8 @@ import glob
 import datetime
 from typing import Optional, Dict, List, Any
 
-# Define paths - avoid importing from config to prevent circular imports
-TRACKING_DIR = 'tracking'
-WEIGHTS_DIR = 'weights'
-GRAPHS_DIR = 'graphs' 
-RESULTS_DIR = 'results'
-
-# Make sure these directories exist
-os.makedirs(TRACKING_DIR, exist_ok=True)
-os.makedirs(WEIGHTS_DIR, exist_ok=True)
-os.makedirs(GRAPHS_DIR, exist_ok=True)
-os.makedirs(RESULTS_DIR, exist_ok=True)
+# Import needed directories from config
+from config import TRACKING_DIR, WEIGHTS_DIR, GRAPHS_DIR, RESULTS_DIR
 
 def get_session_filename(model, epoch=None, accuracy=None, prefix=None, extension=None, directory=None):
     """
@@ -90,20 +81,6 @@ class SessionTracker:
             "metrics": {},
             "files": {}
         }
-        
-        # Import config values only when needed, not at module level
-        try:
-            # Import only when needed to avoid circular imports
-            import config as conf
-            # Add configuration details if available
-            self.data["config"].update({
-                "optimizer": getattr(conf, 'OPTIMIZER', {}),
-                "scheduler": getattr(conf, 'SCHEDULER', {}),
-                "training": getattr(conf, 'TRAIN', {})
-            })
-        except ImportError:
-            # If config can't be imported, proceed without those values
-            pass
     
     def add_metrics(self, metrics):
         """Add metrics to the session data."""
@@ -126,7 +103,6 @@ class SessionTracker:
         with open(filepath, 'w') as f:
             json.dump(self.data, f, indent=2)
             
-        print(f"Session tracking data saved to {filepath}")
         return filepath
     
     @staticmethod
@@ -178,4 +154,4 @@ class SessionTracker:
         if limit:
             sessions = sessions[:limit]
             
-        return sessions 
+        return sessions
