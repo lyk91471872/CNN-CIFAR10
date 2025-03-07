@@ -8,7 +8,7 @@ from torchsummary import summary
 from tqdm import tqdm
 from typing import Dict, List, Tuple
 import numpy as np
-import os
+
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 
@@ -17,7 +17,6 @@ from utils.early_stopping import EarlyStopping
 from utils.augmentation import mixup_data
 from utils.visualization import plot_training_history, plot_confusion_matrix, plot_crossval_history, plot_crossval_confusion_matrices
 from utils.session import SessionTracker, get_session_filename
-from dataset import create_dataset
 
 class Pipeline:
     def __init__(self, model: nn.Module):
@@ -228,7 +227,7 @@ class Pipeline:
                 )
             
             # 5. Generate predictions and save them
-            test_dataset = create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
+            test_dataset = conf.create_dataset(data_source=conf.TEST_DATA_PATH, mode='test')
             test_loader = DataLoader(test_dataset, shuffle=False, **conf.DATALOADER)
             predictions, indices = self.predict(test_loader)
             
