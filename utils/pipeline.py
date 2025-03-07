@@ -114,8 +114,9 @@ class Pipeline:
 
         with torch.no_grad():
             for inputs, clean_inputs, targets in val_loader:
-                inputs, targets = inputs.to(self.device), targets.to(self.device)
-                outputs = self.model(inputs)
+                # Use clean_inputs (non-augmented) for validation
+                clean_inputs, targets = clean_inputs.to(self.device), targets.to(self.device)
+                outputs = self.model(clean_inputs)
                 loss = self.criterion(outputs, targets)
 
                 val_loss += loss.item()
