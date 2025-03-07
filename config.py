@@ -1,13 +1,9 @@
 import os
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
-import datetime
 from pathlib import Path
-import json
 
 # Base directory paths
 ROOT_DIR = Path(__file__).resolve().parent
@@ -87,7 +83,7 @@ TRAIN = {
     'early_stopping_min_delta': 0.0005,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'no_augmentation_epochs': 5,
+    'no_augmentation_epochs': 2,
     'min_save_epoch': 10,
     'warmup_epochs': 5
 }
