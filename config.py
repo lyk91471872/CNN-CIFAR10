@@ -102,7 +102,7 @@ def get_model():
     """Get the model class to use for training.
     This function is used to avoid circular imports between config.py and models.
     """
-    from models import CustomEfficientNetV2_B0, CustomResNet18
+    from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34
     return CustomEfficientNetV2_B0  # Change this to use a different model
 
 # CIFAR-10 class names
