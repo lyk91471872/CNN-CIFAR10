@@ -16,22 +16,7 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-# Define command aliases
-ALIASES = {
-    't': 'train',
-    'c': 'crossval',
-    'p': 'pdf',
-    'tp': 'train-pdf',
-    'b': 'benchmark',
-    'n': 'normalize',
-    'l': 'list-sessions'
-}
-
-# Add aliases to the Click group
-for alias, cmd_name in ALIASES.items():
-    cli.add_command(cli.get_command(None, cmd_name), alias)
-
-@cli.command(name='train', help='Train the model on full dataset')
+@cli.command('train', '-t', help='Train the model on full dataset')
 def train():
     """Train the model on full dataset."""
     print("\nTraining on full dataset...")
@@ -51,7 +36,7 @@ def train():
         val_loader=val_loader
     )
 
-@cli.command(name='crossval', help='Run cross-validation')
+@cli.command('crossval', '-c', help='Run cross-validation')
 def crossval():
     """Run cross-validation."""
     print("\nStarting cross-validation...")
@@ -62,7 +47,7 @@ def crossval():
     # Pipeline.cross_validate handles everything including plotting and tracking
     fold_results = pipeline.cross_validate(dataset)
 
-@cli.command(name='pdf', help='Generate PDF of test images')
+@cli.command('pdf', '-p', help='Generate PDF of test images')
 def generate_pdf():
     """Generate PDF of test images."""
     print("\nGenerating PDF of test images...")
@@ -77,7 +62,7 @@ def generate_pdf():
     except Exception as e:
         print(f"Error generating PDF: {e}")
 
-@cli.command(name='train-pdf', help='Generate PDF of training images (batch 1)')
+@cli.command('train-pdf', '-tp', help='Generate PDF of training images (batch 1)')
 def generate_train_pdf():
     """Generate PDF of training images (batch 1)."""
     print("\nGenerating PDF of training images (batch 1)...")
@@ -94,7 +79,7 @@ def generate_train_pdf():
     except Exception as e:
         print(f"Error generating PDF: {e}")
 
-@cli.command(name='benchmark', help='Run dataloader benchmark')
+@cli.command('benchmark', '-b', help='Run dataloader benchmark')
 def benchmark():
     """Run dataloader benchmark."""
     print("\nRunning dataloader benchmark...")
@@ -104,7 +89,7 @@ def benchmark():
     except Exception as e:
         print(f"Error running benchmark: {e}")
 
-@cli.command(name='normalize', help='Update normalization values')
+@cli.command('normalize', '-n', help='Update normalization values')
 def normalize():
     """Update normalization values."""
     print("\nUpdating normalization values...")
@@ -114,7 +99,7 @@ def normalize():
     except Exception as e:
         print(f"Error updating normalization values: {e}")
 
-@cli.command(name='list-sessions', help='List recent training/cross-validation sessions')
+@cli.command('list-sessions', '-l', help='List recent training/cross-validation sessions')
 @click.option('--model', help='Filter sessions by model name')
 @click.option('--type', type=click.Choice(['training', 'crossval']), help='Filter sessions by type')
 @click.option('--limit', type=int, default=10, help='Maximum number of sessions to list')
