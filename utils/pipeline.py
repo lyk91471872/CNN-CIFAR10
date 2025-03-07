@@ -124,9 +124,12 @@ class Pipeline:
                 print("Early stopping triggered")
                 break
 
-            if should_save and val_loss < best_val_loss:
+            # Only save if we've completed the minimum number of epochs and have a better validation loss
+            can_save = should_save and epoch >= conf.TRAIN.get('min_save_epoch', 0)
+            if can_save and val_loss < best_val_loss:
                 best_val_loss = val_loss
                 self.model.save()
+                print(f"Epoch {epoch+1}: Saved model with validation loss {val_loss:.4f}")
 
             history['train_losses'].append(train_loss)
             history['val_losses'].append(val_loss)
