@@ -14,180 +14,130 @@ def load_cifar_batch(file_path):
         batch = pickle.load(f, encoding='bytes')
     return batch
 
-def create_dataset(data_source, mode='training', transform=None, raw=False):
-    """
-    Factory function that creates and returns the appropriate CIFAR-10 dataset.
-    
-    Args:
-        data_source: Either a list of file paths (training) or a single path (test).
-        mode: 'training', 'test', or 'benchmark'
-        transform: Transform to apply (uses defaults if None)
-        raw: If True, returns raw PIL images without transformation
-    
-    Returns:
-        A configured CIFAR10Dataset instance
-    """
-    # Configure dataset based on mode and parameters
-    if mode == 'training':
-        return CIFAR10Dataset(
-            data_source=data_source,
-            mode=mode,
-            transform=transform,
-            return_labels=True,
-            return_indices=False
-        )
-    elif mode == 'test':
-        return CIFAR10Dataset(
-            data_source=data_source,
-            mode='test' if not raw else 'raw',
-            transform=transform if not raw else None,
-            return_labels=False,
-            return_indices=True
-        )
-    elif mode == 'benchmark':
-        return CIFAR10Dataset(
-            data_source=data_source,
-            mode=mode,
-            transform=transform,
-            return_labels=True,
-            return_indices=False
-        )
-    else:
-        raise ValueError(f"Unknown mode: {mode}")
-
 class CIFAR10Dataset(Dataset):
     """
-    Flexible CIFAR-10 dataset that can handle both training and test data.
+    CIFAR-10 training dataset.
     
-    Supports various modes:
-    - Training mode: Returns (augmented_image, clean_image, label)
-    - Test mode: Returns (transformed_image, index)
-    - Raw mode: Returns (PIL_image, index)
-    - Benchmark mode: Returns (transformed_image, label)
+    Returns a tuple (augmented_image, clean_image, label) where:
+      - augmented_image: image processed by the provided transform.
+      - clean_image: image processed by a base transform (ToTensor + Normalize).
+      - label: corresponding label.
     """
-    def __init__(self, data_source, mode='training', transform=None, return_labels=True, return_indices=False):
-        """
-        Initialize the dataset.
-        
-        Args:
-            data_source: Either a list of file paths (training) or a single path (test).
-            mode: One of 'training', 'test', 'raw', or 'benchmark'.
-            transform: Transform to apply to the images.
-            return_labels: Whether to return labels.
-            return_indices: Whether to return indices.
-        """
-        self.mode = mode
-        self.transform = transform
-        self.return_labels = return_labels
-        self.return_indices = return_indices
-        
-        # Configure transformations based on mode
-        self._configure_transforms(transform)
-        
-        # Load the data
+    def __init__(self, data_paths, transform=TRANSFORM, base_transform=BASE_TRANSFORM):
         self.data = []
         self.labels = []
-        self._load_data(data_source)
-            
-    def _configure_transforms(self, transform):
-        """Configure transforms based on the dataset mode."""
-        if self.mode == 'training':
-            self.aug_transform = transform or TRANSFORM
-            self.base_transform = BASE_TRANSFORM
-        elif self.mode in ('test', 'benchmark'):
-            self.transform = transform or BASE_TRANSFORM
-        # For 'raw' mode, no transform is needed
+        self.transform = transform
+        self.base_transform = base_transform
         
-    def _load_data(self, data_source):
-        """Load data from source, handling both training and test data."""
-        if isinstance(data_source, list):
-            self._load_training_data(data_source)
-        else:
-            self._load_test_data(data_source)
-        
-    def _load_training_data(self, data_paths):
-        """Load multiple training batches."""
+        # Load all data batches
         for path in data_paths:
             batch = load_cifar_batch(path)
             self.data.append(batch[b'data'])
             self.labels.extend(batch[b'labels'])
+            
         # Reshape data to (N, 32, 32, 3)
         self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
         
-    def _load_test_data(self, file_path):
-        """Load a single test batch."""
-        batch = load_cifar_batch(file_path)
-        self.data = batch[b'data']  # Already in correct format
-        if b'labels' in batch:
-            self.labels = batch[b'labels']  # Use labels if they exist
-        else:
-            self.labels = []  # No labels for test data
+    def __len__(self):
+        return len(self.labels)
+    
+    def __getitem__(self, idx):
+        img = self.data[idx]
+        pil_img = Image.fromarray(img)
+        
+        # Apply base transform for clean image
+        clean_img = self.base_transform(pil_img)
+        
+        # Apply augmentation transform
+        aug_img = self.transform(pil_img)
+        aug_img = self.base_transform(aug_img)
             
+        label = self.labels[idx]
+        return aug_img, clean_img, label
+
+class CIFAR10TestDataset(Dataset):
+    """
+    CIFAR-10 test dataset.
+    
+    Returns a tuple (transformed_image, index).
+    """
+    def __init__(self, file_path, transform=BASE_TRANSFORM):
+        batch = load_cifar_batch(file_path)
+        self.data = batch[b'data']  # Load raw data
+        self.transform = transform
+        
     def __len__(self):
         return len(self.data)
     
-    def _get_pil_image(self, idx):
-        """Convert raw data to PIL Image."""
+    def __getitem__(self, idx):
         img = self.data[idx]
-        return Image.fromarray(img)
-    
-    def _process_training_mode(self, pil_img):
-        """Process image for training mode, returning (augmented, clean)."""
-        clean_img = self.base_transform(pil_img)
-        aug_img = self.base_transform(self.aug_transform(pil_img))
-        return [aug_img, clean_img]
-    
-    def _process_test_mode(self, pil_img):
-        """Process image for test or benchmark mode."""
+        pil_img = Image.fromarray(img)
+        
         if self.transform:
-            return [self.transform(pil_img)]
-        return [pil_img]
-    
-    def _process_raw_mode(self, pil_img):
-        """Return the raw PIL image without transformation."""
-        return [pil_img]
-    
-    def _build_result(self, idx, processed_imgs):
-        """Build result tuple with images, labels, and/or indices as needed."""
-        result = processed_imgs.copy()
+            img = self.transform(pil_img)
         
-        # Add label if requested and available
-        if self.return_labels and self.labels and idx < len(self.labels):
-            result.append(self.labels[idx])
+        return img, idx
+
+class CIFAR10BenchmarkDataset(Dataset):
+    """
+    Simplified CIFAR-10 dataset for benchmarking.
+    Applies only base transforms (ToTensor + Normalize) without augmentation.
+    """
+    def __init__(self, data_paths, transform=BASE_TRANSFORM):
+        self.data = []
+        self.labels = []
+        self.transform = transform
         
-        # Add index if requested
-        if self.return_indices:
-            result.append(idx)
+        # Load all data batches
+        for path in data_paths:
+            batch = load_cifar_batch(path)
+            self.data.append(batch[b'data'])
+            self.labels.extend(batch[b'labels'])
             
-        # Return scalar for single items, tuple otherwise
-        if len(result) == 1:
-            return result[0]
-        return tuple(result)
+        # Reshape data to (N, 32, 32, 3)
+        self.data = np.concatenate(self.data).reshape(-1, 3, 32, 32).transpose(0, 2, 3, 1)
+        
+    def __len__(self):
+        return len(self.labels)
     
     def __getitem__(self, idx):
-        """Get item based on the configured mode and return options."""
-        pil_img = self._get_pil_image(idx)
+        img = self.data[idx]
+        pil_img = Image.fromarray(img)
         
-        # Process image based on mode
-        if self.mode == 'training':
-            processed_imgs = self._process_training_mode(pil_img)
-        elif self.mode == 'raw':
-            processed_imgs = self._process_raw_mode(pil_img)
-        else:  # 'test' or 'benchmark'
-            processed_imgs = self._process_test_mode(pil_img)
+        if self.transform:
+            img = self.transform(pil_img)
+            
+        label = self.labels[idx]
+        return img, label
+
+class CIFAR10TestDatasetRaw(Dataset):
+    """
+    CIFAR-10 test dataset that returns raw images without normalization.
+    
+    Returns a tuple (raw_image, index) where raw_image is a PIL Image.
+    """
+    def __init__(self, file_path):
+        batch = load_cifar_batch(file_path)
+        self.data = batch[b'data']  # Load raw data
         
-        # Build and return final result
-        return self._build_result(idx, processed_imgs)
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        img = self.data[idx]
+        pil_img = Image.fromarray(img)
+        return pil_img, idx
 
-# Backward compatibility wrappers
-def CIFAR10TestDataset(file_path, transform=BASE_TRANSFORM):
-    """Compatibility wrapper for test dataset."""
-    return create_dataset(file_path, mode='test', transform=transform)
-
-def CIFAR10BenchmarkDataset(data_paths, transform=BASE_TRANSFORM):
-    """Compatibility wrapper for benchmark dataset."""
-    return create_dataset(data_paths, mode='benchmark', transform=transform)
-
-def CIFAR10TestDatasetRaw(file_path):
-    """Compatibility wrapper for raw test dataset."""
-    return create_dataset(file_path, mode='test', raw=True)
+# For backward compatibility with existing code
+def create_dataset(data_source, mode='training', transform=None, raw=False):
+    """Simple factory function for backward compatibility."""
+    if mode == 'training':
+        return CIFAR10Dataset(data_paths=data_source, transform=transform or TRANSFORM)
+    elif mode == 'test':
+        if raw:
+            return CIFAR10TestDatasetRaw(file_path=data_source)
+        return CIFAR10TestDataset(file_path=data_source, transform=transform or BASE_TRANSFORM)
+    elif mode == 'benchmark':
+        return CIFAR10BenchmarkDataset(data_paths=data_source, transform=transform or BASE_TRANSFORM)
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
