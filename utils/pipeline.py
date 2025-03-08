@@ -114,7 +114,7 @@ class Pipeline:
 
         with torch.no_grad():
             for aug_inputs, clean_inputs, targets in val_loader:
-                inputs = aug_inputs if self.use_augmentation else clean_inputs
+                inputs = clean_inputs
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)

@@ -33,7 +33,8 @@ BASE_TRANSFORM = v2.Compose([
 # Augmentation transforms applied only to training data
 TRANSFORM = v2.Compose([
     v2.RandomHorizontalFlip(),
-    v2.ColorJitter(brightness=0.5, contrast=0.3, saturation=0.2, hue=0.05),
+    v2.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.1),
+    v2.RandomPosterize(bits=4),
     v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
 ])
 
@@ -99,7 +100,7 @@ def get_model():
     This function is used to avoid circular imports between config.py and models.
     """
     from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34
-    return CustomEfficientNetV2_B0  # Change this to use a different model
+    return CustomResNet18  # Change this to use a different model
 
 # CIFAR-10 class names
 CIFAR10_CLASSES = [
