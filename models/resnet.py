@@ -147,9 +147,9 @@ class CustomResNet34(BaseModel):
             "dropout_rate": 0.2
         } 
 
-class CustomResNet18x(BaseModel):
+class CustomResNet18X(BaseModel):
     def __init__(self, x=conf.X, num_classes=10):  # Find largest x for <5M parameters
-        super(CustomResNet18x, self).__init__()
+        super(CustomResNet18X, self).__init__()
         self.conv1 = nn.Conv2d(3, x, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(x)
         self.silu = nn.SiLU(inplace=True)
@@ -185,74 +185,3 @@ class CustomResNet18x(BaseModel):
 
     def __str__(self):
         return "resnet18x" 
-
-class CustomResNet18X(BaseModel):
-    """
-    CustomResNet18 with parameterized channel size multiplier.
-    This allows exploring different model sizes.
-    """
-    def __init__(self, x=None, num_classes=10):
-        super(CustomResNet18X, self).__init__()
-        # Store the channel size multiplier, use config.X if not specified
-        self.x = x if x is not None else conf.X
-        
-        # Initial convolution with x channels
-        self.conv1 = nn.Conv2d(3, self.x, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(self.x)
-        self.silu = nn.SiLU(inplace=True)
-        
-        # Layer configuration with scaled channels
-        self.layer1 = self._make_layer(BasicBlock, self.x, self.x, num_blocks=2, stride=1)
-        self.layer2 = self._make_layer(BasicBlock, self.x, 2*self.x, num_blocks=2, stride=2)
-        self.layer3 = self._make_layer(BasicBlock, 2*self.x, 4*self.x, num_blocks=2, stride=2)
-        self.layer4 = self._make_layer(BasicBlock, 4*self.x, 8*self.x, num_blocks=2, stride=2)
-        
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Sequential(
-            nn.Dropout(0.2),
-            nn.Linear(8*self.x * BasicBlock.expansion, num_classes)
-        )
-        
-        # Initialize weights
-        self._initialize_weights()
-
-    def _make_layer(self, block, in_channels, out_channels, num_blocks, stride):
-        layers = []
-        layers.append(block(in_channels, out_channels, stride))
-        for _ in range(1, num_blocks):
-            layers.append(block(out_channels, out_channels, stride=1))
-        return nn.Sequential(*layers)
-    
-    def _initialize_weights(self):
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
-
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.silu(out)
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = self.layer4(out)
-        out = self.avgpool(out)
-        out = torch.flatten(out, 1)
-        out = self.fc(out)
-        return out
-
-    def __str__(self):
-        return f"resnet18x_{self.x}"
-    
-    def get_config(self):
-        """Get model configuration as a dictionary."""
-        return {
-            "type": "CustomResNet18X",
-            "x": self.x,
-            "num_classes": self.fc[1].out_features,
-            "activation": "SiLU",
-            "dropout_rate": 0.2
-        } 
