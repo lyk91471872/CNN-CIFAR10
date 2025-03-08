@@ -31,29 +31,21 @@ AUGMENTATION_OPTIONS = {
     # Horizontal flip with different probabilities
     'hflip': [
         None,
-        {'name': 'RandomHorizontalFlip', 'params': {'p': 0.3}},
         {'name': 'RandomHorizontalFlip', 'params': {'p': 0.5}},
-    ],
-    
-    # Rotation with different angles
-    'rotation': [
-        None,
-        {'name': 'RandomRotation', 'params': {'degrees': 10}},
-        {'name': 'RandomRotation', 'params': {'degrees': 15}},
     ],
     
     # ColorJitter with different parameters
     'color_jitter': [
         None,
         {'name': 'ColorJitter', 'params': {'brightness': 0.2, 'contrast': 0.2, 'saturation': 0.2, 'hue': 0.1}},
-        {'name': 'ColorJitter', 'params': {'brightness': 0.4, 'contrast': 0.3, 'saturation': 0.3, 'hue': 0.15}},
+        {'name': 'ColorJitter', 'params': {'brightness': 0.3, 'contrast': 0.3, 'saturation': 0.3, 'hue': 0.15}},
     ],
     
     # Affine transformations
     'affine': [
         None,
-        {'name': 'RandomAffine', 'params': {'degrees': 0, 'translate': (0.1, 0.1), 'scale': (0.9, 1.1)}},
-        {'name': 'RandomAffine', 'params': {'degrees': 5, 'translate': (0.15, 0.15), 'scale': (0.85, 1.15)}},
+        {'name': 'RandomAffine', 'params': {'degrees': 10, 'translate': (0.1, 0.1), 'scale': (0.9, 1.1)}},
+        {'name': 'RandomAffine', 'params': {'degrees': 15, 'translate': (0.15, 0.15), 'scale': (0.85, 1.15)}},
     ],
     
     # Random erasing (similar to Cutout)
