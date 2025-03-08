@@ -173,6 +173,10 @@ class Pipeline:
 
         pbar = tqdm(range(epochs), desc="Training")
         for epoch in pbar:
+            if epoch == 51:
+                train_loader.transform = conf.TRANSFORMF
+            elif epoch == 51:
+                train_loader.transform = conf.TRANSFORMFF
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
             if self.use_warmup:
                 self._warmup_learning_rate(epoch)

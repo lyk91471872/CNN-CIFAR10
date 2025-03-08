@@ -33,20 +33,22 @@ BASE_TRANSFORM = v2.Compose([
 # Augmentation transforms applied only to training data
 TRANSFORM = v2.Compose([
     v2.RandomHorizontalFlip(),
+    v2.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.05),
+])
+TRANSFORMF = v2.Compose([
+    v2.RandomHorizontalFlip(),
     v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
     v2.RandomPosterize(bits=2),
     v2.RandomAffine(degrees=5, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-    v2.AutoAugment(policy=v2.AutoAugmentPolicy.CIFAR10)
 ])
 
-'''
-# Use AutoAugment with additional basic augmentations
-TRANSFORM = v2.Compose([
-    v2.RandomHorizontalFlip(p=0.5),
-    v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+TRANSFORMFF = v2.Compose([
+    v2.RandomHorizontalFlip(),
+    v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+    v2.RandomPosterize(bits=4),
+    v2.RandomAffine(degrees=10, translate=(0.1, 0.1), scale=(0.9, 1.1)),
     v2.AutoAugment(policy=v2.AutoAugmentPolicy.CIFAR10)
 ])
-'''
 
 # DataLoader parameters
 DATALOADER = {
@@ -64,8 +66,8 @@ DATALOADER = {
 # - More gradual learning rate decay with higher patience
 # - Enhanced data augmentation to improve generalization
 OPTIMIZER = {
-    'lr': 0.02,  # Increased from 0.01 to help escape local minima
-    'weight_decay': 2e-4,  # Increased regularization slightly
+    'lr': 0.05,  # Increased from 0.01 to help escape local minima
+    'weight_decay': 5e-4,  # Increased regularization slightly
     'momentum': 0.9
 }
 
@@ -73,15 +75,15 @@ OPTIMIZER = {
 SCHEDULER = {
     'mode': 'min',
     'factor': 0.5,
-    'patience': 20,
+    'patience': 10,
     'min_lr': 1e-5,
     'verbose': True
 }
 
 # Training parameters
 TRAIN = {
-    'epochs': 300,
-    'early_stopping_patience': 30,
+    'epochs': 250,
+    'early_stopping_patience': 25,
     'early_stopping_min_delta': 0.0005,
     'mixup_alpha': 0,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
@@ -93,6 +95,7 @@ TRAIN = {
 # Data paths
 DATA_DIR = 'data/cifar-10-python/cifar-10-batches-py'
 TRAIN_DATA_PATHS = [os.path.join(DATA_DIR, f'data_batch_{i}') for i in range(1, 6)]
+TRAIN_DATA_PATHS.append(os.path.join(DATA_DIR, 'test_batch'))
 TEST_DATA_PATH = 'data/cifar_test_nolabel.pkl'
 
 # Model selection - using a function to avoid circular imports
