@@ -76,7 +76,7 @@ def train_with_augmentation(transform, epochs, verbose=True):
     """Train a model with the given transform for a fixed number of epochs."""
     dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training', transform=transform)
     model = conf.get_model()()
-    pipeline = Pipeline(model)
+    pipeline = Pipeline(model, use_warmup=False, verbose=False)
     pipeline.early_stopping.patience = epochs   # Disable early stopping
 
     # Split into train and validation

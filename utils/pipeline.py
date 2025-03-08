@@ -20,7 +20,8 @@ from utils.visualization import plot_training_history, plot_confusion_matrix, pl
 from utils.session import SessionTracker, get_session_filename
 
 class Pipeline:
-    def __init__(self, model: nn.Module):
+    def __init__(self, model: nn.Module, verbose=True, use_warmup=True):
+        self.verbose = verbose
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
@@ -41,10 +42,11 @@ class Pipeline:
         self.early_stopping = EarlyStopping(
             patience=conf.TRAIN['early_stopping_patience'],
             delta=conf.TRAIN['early_stopping_min_delta'],
-            verbose=True
+            verbose=self.verbose
         )
         self.use_augmentation = False
-        summary(self.model, (3, 32, 32))
+        if self.verbose:
+            summary(self.model, (3, 32, 32))
 
     def _warmup_learning_rate(self, epoch):
         """Apply linear warmup to learning rate during initial epochs."""
@@ -53,12 +55,14 @@ class Pipeline:
             warmup_factor = 0.1 + 0.9 * epoch / conf.TRAIN.get('warmup_epochs', 1)
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = self.initial_lr * warmup_factor
-            print(f"Warmup epoch {epoch+1}: LR = {self.initial_lr * warmup_factor:.6f}")
+            if self.verbose:
+                print(f"Warmup epoch {epoch+1}: LR = {self.initial_lr * warmup_factor:.6f}")
         elif epoch == conf.TRAIN.get('warmup_epochs', 0):
             # Reset to initial learning rate after warmup
             for param_group in self.optimizer.param_groups:
                 param_group['lr'] = self.initial_lr
-            print(f"Warmup complete: LR = {self.initial_lr:.6f}")
+            if self.verbose:
+                print(f"Warmup complete: LR = {self.initial_lr:.6f}")
 
     def train_one_epoch(self, train_loader: DataLoader) -> Tuple[float, float]:
         """Train for one epoch and return loss and accuracy."""
@@ -169,7 +173,8 @@ class Pipeline:
         pbar = tqdm(range(epochs), desc="Training")
         for epoch in pbar:
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
-            self._warmup_learning_rate(epoch)
+            if self.use_warmup:
+                self._warmup_learning_rate(epoch)
             train_loss, train_acc = self.train_one_epoch(train_loader)
             val_loss, val_acc, cm = self.val_one_epoch(val_loader)
 
@@ -189,7 +194,8 @@ class Pipeline:
                 best_model_state = self.model.state_dict().copy()
                 # Store the best state in the model for cross-validation
                 self.model.best_state_dict = best_model_state
-                print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}, accuracy {val_acc:.2f}% (saved to best_state_dict)")
+                if self.verbose:
+                    print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}, accuracy {val_acc:.2f}% (saved to best_state_dict)")
 
             history['train_losses'].append(train_loss)
             history['val_losses'].append(val_loss)
@@ -203,7 +209,7 @@ class Pipeline:
                 'val_acc': f'{val_acc:.2f}%'
             })
 
-            if self.early_stopping.early_stop:
+            if self.early_stopping.early_stop and self.verbose:
                 print("Early stopping triggered")
                 break
 
@@ -211,7 +217,8 @@ class Pipeline:
         # 1. Load the best model state
         if best_model_state is not None:
             self.model.load_state_dict(best_model_state)
-            print(f"Loaded best model state from epoch with val loss {best_val_loss:.4f}, accuracy {best_val_acc*100:.2f}%")
+            if self.verbose:
+                print(f"Loaded best model state from epoch with val loss {best_val_loss:.4f}, accuracy {best_val_acc*100:.2f}%")
 
         # 2. Save the best model to disk with the number of epochs and accuracy
         if should_save:
@@ -251,7 +258,8 @@ class Pipeline:
             # Save predictions
             submission = pd.DataFrame({'ID': indices, 'Label': predictions})
             submission.to_csv(pred_path, index=False)
-            print(f"\nTest predictions saved to {pred_path}")
+            if self.verbose:
+                print(f"\nTest predictions saved to {pred_path}")
 
             # 6. Update session tracker with all paths and metrics
             session.add_metrics({
@@ -269,10 +277,9 @@ class Pipeline:
 
             # 7. Save session data
             session_path = session.save()
-            print(f"Training session data saved to {session_path}")
-
-            print(f"\nTraining completed after {completed_epochs} epochs.")
-            print(f"Best model saved with validation accuracy {best_val_acc*100:.2f}%")
+            if self.verbose:
+                print(f"\nTraining completed after {completed_epochs} epochs.")
+                print(f"Best model saved with validation accuracy {best_val_acc*100:.2f}%")
 
         return history
 
@@ -326,7 +333,7 @@ class Pipeline:
             self.early_stopping = EarlyStopping(
                 patience=conf.TRAIN['early_stopping_patience'],
                 delta=conf.TRAIN['early_stopping_min_delta'],
-                verbose=True
+                verbose=self.verbose
             )
 
             # Create data loaders for this fold
