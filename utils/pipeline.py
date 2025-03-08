@@ -22,6 +22,7 @@ from utils.session import SessionTracker, get_session_filename
 class Pipeline:
     def __init__(self, model: nn.Module, verbose=True, use_warmup=True):
         self.verbose = verbose
+        self.use_warmup = use_warmup
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
