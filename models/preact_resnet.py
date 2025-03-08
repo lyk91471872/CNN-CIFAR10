@@ -46,24 +46,22 @@ class PreActBlock(nn.Module):
             )
 
     def forward(self, x):
-        # Pre-activation
+        # Shortcut should branch off directly from the input
+        shortcut = self.shortcut(x)
+        
+        # Pre-activation and first convolution
         out = self.bn1(x)
         out = self.silu1(out)
-
-        # Shortcut should branch off before the first convolution
-        shortcut = self.shortcut(out)
-
-        # First convolution
         out = self.conv1(out)
-
+        
         # Second pre-activation and convolution
         out = self.bn2(out)
         out = self.silu2(out)
         out = self.conv2(out)
-
+        
         # Add shortcut
         out = out + shortcut
-
+        
         return out
 
 
