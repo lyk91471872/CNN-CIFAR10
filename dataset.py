@@ -3,7 +3,7 @@ import os
 import pickle
 from PIL import Image
 from torch.utils.data import Dataset
-import torchvision.transforms as transforms
+from torchvision.transforms import v2
 from config import TRANSFORM, BASE_TRANSFORM
 
 def load_cifar_batch(file_path):

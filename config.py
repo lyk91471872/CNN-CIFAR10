@@ -1,6 +1,6 @@
 import os
 import torch
-from torchvision import transforms
+from torchvision.transforms import v2
 from pathlib import Path
 
 # Base directory paths
@@ -25,24 +25,26 @@ CIFAR10_MEAN = (0.4914009, 0.48215896, 0.4465308)
 CIFAR10_STD = (0.24703279, 0.24348423, 0.26158753)
 
 # Base transforms (without augmentation)
-BASE_TRANSFORM = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD)
+BASE_TRANSFORM = v2.Compose([
+    v2.ToTensor(),
+    v2.Normalize(CIFAR10_MEAN, CIFAR10_STD)
 ])
 
 # Augmentation transforms applied only to training data
-# TRANSFORM = transforms.Compose([
-#     transforms.RandomHorizontalFlip(),
-#     transforms.RandomRotation(10),
-#     transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2)
-# ])
-
-# Use AutoAugment with additional basic augmentations
-TRANSFORM = transforms.Compose([
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
-    transforms.AutoAugment(policy=transforms.AutoAugmentPolicy.CIFAR10)
+TRANSFORM = v2.Compose([
+    v2.RandomHorizontalFlip(),
+    v2.ColorJitter(brightness=0.5, contrast=0.3, saturation=0.2, hue=0.05),
+    v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
 ])
+
+'''
+# Use AutoAugment with additional basic augmentations
+TRANSFORM = v2.Compose([
+    v2.RandomHorizontalFlip(p=0.5),
+    v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+    v2.AutoAugment(policy=v2.AutoAugmentPolicy.CIFAR10)
+])
+'''
 
 # DataLoader parameters
 DATALOADER = {
@@ -81,7 +83,7 @@ TRAIN = {
     'early_stopping_min_delta': 0.0005,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'no_augmentation_epochs': 2,
+    'no_augmentation_epochs': 1,
     'min_save_epoch': 10,
     'warmup_epochs': 5
 }

@@ -81,8 +81,9 @@ def main():
         print(f"Means: {means}")
         print(f"Stds: {stds}")
         
+        print("\nUpdated normalization values in config.py.")
         print("\nFor use in transforms.Normalize():")
-        print(f"transforms.Normalize(mean={means}, std={stds})")
+        print(f"v2.Normalize(mean={means}, std={stds})")
         
         # Update config.py
         update_config_file(means, stds)
