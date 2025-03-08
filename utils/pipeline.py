@@ -24,7 +24,7 @@ class Pipeline:
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
-        
+
         # Reset best state dict
         self.model.best_state_dict = None
 
@@ -139,7 +139,7 @@ class Pipeline:
 
         return val_loss, val_acc, cm
 
-    def train(self, train_loader: DataLoader, val_loader: DataLoader, should_save: bool = True) -> Dict[str, List[float]]:
+    def train(self, train_loader: DataLoader, val_loader: DataLoader, epochs: int = conf.TRAIN['epochs'], should_save: bool = True) -> Dict[str, List[float]]:
         """Train the model and optionally save the best model.
 
         Args:
@@ -166,7 +166,7 @@ class Pipeline:
         best_val_acc = 0.0
         completed_epochs = 0
 
-        pbar = tqdm(range(conf.TRAIN['epochs']), desc="Training")
+        pbar = tqdm(range(epochs), desc="Training")
         for epoch in pbar:
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
             self._warmup_learning_rate(epoch)
@@ -316,7 +316,7 @@ class Pipeline:
 
             # Reset model to initial state
             self.model.load_state_dict(initial_state)
-            
+
             # Reset best_state_dict to None for the new fold
             self.model.best_state_dict = None
 
@@ -348,7 +348,7 @@ class Pipeline:
             if hasattr(self.model, 'best_state_dict') and self.model.best_state_dict is not None:
                 # Store the current state in case the best state is None
                 current_state = self.model.state_dict().copy()
-                
+
                 # Load the best state from training
                 self.model.load_state_dict(self.model.best_state_dict)
                 print(f"Fold {fold+1}: Loaded best model state from fold's training")
