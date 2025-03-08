@@ -32,9 +32,6 @@ def grid_search(epochs):
         import traceback
         traceback.print_exc()
 
-# Add command aliases
-cli.add_command(grid_search, name='g')
-
 @cli.command('search-channels', help='Find optimal channel size for CustomResNet18X')
 def search_channel_size():
     """Find the optimal channel size for CustomResNet18X with <5M parameters."""
@@ -46,9 +43,6 @@ def search_channel_size():
         print(f"To use this model, update get_model() in config.py to return CustomResNet18X")
     except Exception as e:
         print(f"Error during channel search: {e}")
-
-# Add command aliases
-cli.add_command(search_channel_size, name='s')
 
 @cli.command('train', help='Train the model on full dataset')
 def train():
@@ -72,9 +66,6 @@ def train():
         val_loader=val_loader
     )
 
-# Add command aliases
-cli.add_command(train, name='t')
-
 @cli.command('crossval', help='Run cross-validation')
 def crossval():
     """Run cross-validation."""
@@ -84,9 +75,6 @@ def crossval():
     pipeline = Pipeline(model)
 
     pipeline.cross_validate(dataset)
-
-# Add command aliases
-cli.add_command(crossval, name='c')
 
 @cli.command('pdf', help='Generate PDF of test images')
 def generate_pdf():
@@ -102,9 +90,6 @@ def generate_pdf():
         print(f"PDF generated successfully: {output_pdf_path}")
     except Exception as e:
         print(f"Error generating PDF: {e}")
-
-# Add command aliases
-cli.add_command(generate_pdf, name='p')
 
 @cli.command('train-pdf', help='Generate PDF of training images (batch 1)')
 def generate_train_pdf():
@@ -123,9 +108,6 @@ def generate_train_pdf():
     except Exception as e:
         print(f"Error generating PDF: {e}")
 
-# Add command aliases
-cli.add_command(generate_train_pdf, name='tp')
-
 @cli.command('benchmark', help='Run dataloader benchmark')
 def benchmark():
     """Run dataloader benchmark."""
@@ -136,9 +118,6 @@ def benchmark():
     except Exception as e:
         print(f"Error running benchmark: {e}")
 
-# Add command aliases
-cli.add_command(benchmark, name='b')
-
 @cli.command('normalize', help='Update normalization values')
 def normalize():
     """Update normalization values."""
@@ -148,9 +127,6 @@ def normalize():
         normalize_main()
     except Exception as e:
         print(f"Error updating normalization values: {e}")
-
-# Add command aliases
-cli.add_command(normalize, name='n')
 
 @cli.command('list-sessions', help='List recent training/cross-validation sessions')
 @click.option('--model', help='Filter sessions by model name')
@@ -189,7 +165,15 @@ def list_sessions(model, type, limit):
             for file_type, file_path in files.items():
                 print(f"     - {file_type}: {file_path}")
 
-# Add command aliases
+# Add all command aliases in one place
+cli.add_command(grid_search, name='g')
+cli.add_command(search_channel_size, name='s')
+cli.add_command(train, name='t')
+cli.add_command(crossval, name='c')
+cli.add_command(generate_pdf, name='p')
+cli.add_command(generate_train_pdf, name='tp')
+cli.add_command(benchmark, name='b')
+cli.add_command(normalize, name='n')
 cli.add_command(list_sessions, name='l')
 
 def main():
