@@ -12,6 +12,8 @@ class BaseModel(nn.Module):
         self.weight_path = None
         # Current best validation accuracy
         self.best_val_accuracy = 0.0
+        # Best model state dictionary during training
+        self.best_state_dict = None
         
     def save(self, epoch=None, accuracy=None, path=None) -> None:
         """Save model weights using the session-based naming scheme.

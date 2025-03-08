@@ -24,6 +24,9 @@ class Pipeline:
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
         self.criterion = nn.CrossEntropyLoss()
+        
+        # Reset best state dict
+        self.model.best_state_dict = None
 
         # Store initial learning rate for warmup
         self.initial_lr = conf.OPTIMIZER['lr']
@@ -184,6 +187,8 @@ class Pipeline:
                 best_confusion_matrix = cm
                 # Save the model state dictionary (not to disk yet)
                 best_model_state = self.model.state_dict().copy()
+                # Store the best state in the model for cross-validation
+                self.model.best_state_dict = best_model_state
                 print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}, accuracy {val_acc:.2f}%")
 
             history['train_losses'].append(train_loss)
@@ -206,6 +211,7 @@ class Pipeline:
         # 1. Load the best model state
         if best_model_state is not None:
             self.model.load_state_dict(best_model_state)
+            print(f"Loaded best model state from epoch with val loss {best_val_loss:.4f}, accuracy {best_val_acc*100:.2f}%")
 
         # 2. Save the best model to disk with the number of epochs and accuracy
         if should_save:
@@ -335,6 +341,13 @@ class Pipeline:
             best_val_loss = history['val_losses'][best_epoch]
             best_val_acc = history['val_accs'][best_epoch] / 100.0  # Convert percentage to decimal
 
+            # Get the best model state from training and apply it
+            if hasattr(self.model, 'best_state_dict') and self.model.best_state_dict is not None:
+                self.model.load_state_dict(self.model.best_state_dict)
+                print(f"Loaded best model state from epoch {best_epoch + 1}")
+            else:
+                print("WARNING: No best model state found. Using final model state.")
+
             # Compute confusion matrix for best model
             self.model.eval()
             y_true = []
@@ -342,9 +355,10 @@ class Pipeline:
 
             with torch.no_grad():
                 for inputs, clean_inputs, targets in val_loader:
-                    inputs = inputs.to(self.device)
+                    # Use clean inputs for validation, not augmented ones
+                    clean_inputs = clean_inputs.to(self.device)
                     targets = targets.to(self.device)
-                    outputs = self.model(inputs)
+                    outputs = self.model(clean_inputs)
                     _, predicted = outputs.max(1)
 
                     y_true.extend(targets.cpu().numpy())
