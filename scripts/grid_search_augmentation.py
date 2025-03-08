@@ -76,7 +76,7 @@ def train_with_augmentation(transform, epochs, verbose=True):
     """Train a model with the given transform for a fixed number of epochs."""
     dataset = create_dataset(data_source=conf.TRAIN_DATA_PATHS, mode='training', transform=transform)
     model = conf.get_model()()
-    pipeline = Pipeline(model, epochs=epochs, use_warmup=False, verbose=False)
+    pipeline = Pipeline(model, use_warmup=False, verbose=False)
     pipeline.early_stopping.patience = epochs   # Disable early stopping
 
     # Split into train and validation
@@ -90,7 +90,7 @@ def train_with_augmentation(transform, epochs, verbose=True):
     val_loader = DataLoader(val_dataset, shuffle=False, **conf.DATALOADER)
 
     # Train for fixed number of epochs
-    history = pipeline.train(train_loader, val_loader, should_save=False)
+    history = pipeline.train(train_loader, val_loader, epochs=epochs, should_save=False)
 
     # Get final metrics
     final_val_acc = history['val_accs'][-1] / 100.0  # Convert from percentage
