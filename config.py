@@ -107,9 +107,6 @@ def get_model():
     return PreActResNet18  # Pre-activation ResNet18 (BN->ReLU->CONV order)
     # return CustomEfficientNetV2_B0  # EfficientNet
 
-# ResNet18x channel size
-X = 32
-
 # CIFAR-10 class names
 CIFAR10_CLASSES = [
     'airplane', 'automobile', 'bird', 'cat', 'deer',
@@ -117,4 +114,4 @@ CIFAR10_CLASSES = [
 ]
 
 # Optimal channel size for CustomResNet18X
-X = 32
+X = 42
