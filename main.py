@@ -16,6 +16,18 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
+@cli.command('search-channels', '-s', help='Find optimal channel size for CustomResNet18X')
+def search_channel_size():
+    """Find the optimal channel size for CustomResNet18X with <5M parameters."""
+    print("\nSearching for optimal channel size...")
+    try:
+        from scripts.search_channel_size import main as search_main
+        optimal_x = search_main()
+        print(f"\nSearch complete. Optimal channel size: x = {optimal_x}")
+        print(f"To use this model, update get_model() in config.py to return CustomResNet18X")
+    except Exception as e:
+        print(f"Error during channel search: {e}")
+
 @cli.command(name='train', help='Train the model on full dataset')
 def train():
     """Train the model on full dataset."""
