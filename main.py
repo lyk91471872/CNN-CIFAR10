@@ -16,7 +16,23 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-@cli.command('search-channels', help='Find optimal channel size for CustomResNet18X')
+@cli.command('grid-search', '-g', help='Run grid search for best data augmentation')
+@click.argument('epochs', type=int, default=10)
+def grid_search(epochs):
+    """Run grid search for optimal data augmentation combinations.
+    
+    EPOCHS: Number of epochs to train each combination (default: 10)
+    """
+    print(f"\nRunning grid search for optimal data augmentation with {epochs} epochs")
+    try:
+        from scripts.grid_search_augmentation import main as grid_search_main
+        grid_search_main(epochs=epochs)
+    except Exception as e:
+        print(f"Error during grid search: {e}")
+        import traceback
+        traceback.print_exc()
+
+@cli.command('search-channels', '-s', help='Find optimal channel size for CustomResNet18X')
 def search_channel_size():
     """Find the optimal channel size for CustomResNet18X with <5M parameters."""
     print("\nSearching for optimal channel size...")
