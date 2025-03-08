@@ -99,11 +99,21 @@ def get_model():
     """Get the model class to use for training.
     This function is used to avoid circular imports between config.py and models.
     """
-    from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34
-    return CustomResNet18  # Change this to use a different model
+    from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34, CustomResNet18X
+    # Uncomment the line for the model you want to use
+    return CustomResNet18  # Standard ResNet18
+    # return CustomResNet34  # Deeper ResNet34
+    # return CustomResNet18X  # ResNet18 with custom channel size (using X value)
+    # return CustomEfficientNetV2_B0  # EfficientNet
+
+# ResNet18x channel size
+X = 32
 
 # CIFAR-10 class names
 CIFAR10_CLASSES = [
     'airplane', 'automobile', 'bird', 'cat', 'deer',
     'dog', 'frog', 'horse', 'ship', 'truck'
 ]
+
+# Optimal channel size for CustomResNet18X
+X = 32
