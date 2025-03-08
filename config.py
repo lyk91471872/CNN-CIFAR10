@@ -33,9 +33,10 @@ BASE_TRANSFORM = v2.Compose([
 # Augmentation transforms applied only to training data
 TRANSFORM = v2.Compose([
     v2.RandomHorizontalFlip(),
-    v2.ColorJitter(brightness=0.4, contrast=0.3, saturation=0.2, hue=0.1),
-    v2.RandomPosterize(bits=4),
-    v2.RandomAffine(degrees=15, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+    v2.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+    v2.RandomPosterize(bits=2),
+    v2.RandomAffine(degrees=5, translate=(0.1, 0.1), scale=(0.9, 1.1)),
+    v2.AutoAugment(policy=v2.AutoAugmentPolicy.CIFAR10)
 ])
 
 '''
@@ -63,8 +64,8 @@ DATALOADER = {
 # - More gradual learning rate decay with higher patience
 # - Enhanced data augmentation to improve generalization
 OPTIMIZER = {
-    'lr': 0.05,  # Increased from 0.01 to help escape local minima
-    'weight_decay': 5e-4,  # Increased regularization slightly
+    'lr': 0.02,  # Increased from 0.01 to help escape local minima
+    'weight_decay': 2e-4,  # Increased regularization slightly
     'momentum': 0.9
 }
 
@@ -72,7 +73,7 @@ OPTIMIZER = {
 SCHEDULER = {
     'mode': 'min',
     'factor': 0.5,
-    'patience': 10,
+    'patience': 20,
     'min_lr': 1e-5,
     'verbose': True
 }
@@ -82,7 +83,7 @@ TRAIN = {
     'epochs': 300,
     'early_stopping_patience': 30,
     'early_stopping_min_delta': 0.0005,
-    'mixup_alpha': 0.2,
+    'mixup_alpha': 0,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
     'no_augmentation_epochs': 0,
     'min_save_epoch': 20,
