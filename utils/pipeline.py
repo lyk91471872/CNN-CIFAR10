@@ -189,7 +189,7 @@ class Pipeline:
                 best_model_state = self.model.state_dict().copy()
                 # Store the best state in the model for cross-validation
                 self.model.best_state_dict = best_model_state
-                print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}, accuracy {val_acc:.2f}%")
+                print(f"Epoch {epoch+1}: New best model with validation loss {val_loss:.4f}, accuracy {val_acc:.2f}% (saved to best_state_dict)")
 
             history['train_losses'].append(train_loss)
             history['val_losses'].append(val_loss)
@@ -316,6 +316,9 @@ class Pipeline:
 
             # Reset model to initial state
             self.model.load_state_dict(initial_state)
+            
+            # Reset best_state_dict to None for the new fold
+            self.model.best_state_dict = None
 
             # Reset optimizer and early stopping
             self.optimizer = optim.SGD(self.model.parameters(), **conf.OPTIMIZER)
@@ -343,10 +346,14 @@ class Pipeline:
 
             # Get the best model state from training and apply it
             if hasattr(self.model, 'best_state_dict') and self.model.best_state_dict is not None:
+                # Store the current state in case the best state is None
+                current_state = self.model.state_dict().copy()
+                
+                # Load the best state from training
                 self.model.load_state_dict(self.model.best_state_dict)
-                print(f"Loaded best model state from epoch {best_epoch + 1}")
+                print(f"Fold {fold+1}: Loaded best model state from fold's training")
             else:
-                print("WARNING: No best model state found. Using final model state.")
+                print(f"Fold {fold+1}: WARNING: No best model state found. Using final model state.")
 
             # Compute confusion matrix for best model
             self.model.eval()
@@ -354,7 +361,7 @@ class Pipeline:
             y_pred = []
 
             with torch.no_grad():
-                for inputs, clean_inputs, targets in val_loader:
+                for aug_inputs, clean_inputs, targets in val_loader:
                     # Use clean inputs for validation, not augmented ones
                     clean_inputs = clean_inputs.to(self.device)
                     targets = targets.to(self.device)
