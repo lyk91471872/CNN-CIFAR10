@@ -79,14 +79,14 @@ SCHEDULER = {
 
 # Training parameters
 TRAIN = {
-    'epochs': 200,
+    'epochs': 300,
     'early_stopping_patience': 30,
     'early_stopping_min_delta': 0.0005,
     'mixup_alpha': 0.2,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-    'no_augmentation_epochs': 1,
-    'min_save_epoch': 10,
-    'warmup_epochs': 5
+    'no_augmentation_epochs': 0,
+    'min_save_epoch': 20,
+    'warmup_epochs': 10
 }
 
 # Data paths
