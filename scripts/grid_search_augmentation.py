@@ -7,7 +7,7 @@ for fair comparison.
 
 import os
 import sys
-import json
+import csv
 import torch
 import torch.nn as nn
 import numpy as np
@@ -68,22 +68,6 @@ AUGMENTATION_OPTIONS = {
         {'name': 'AutoAugment', 'params': {'policy': v2.AutoAugmentPolicy.CIFAR10}},
     ],
 }
-
-# Selective combinations to limit the search space
-# We'll try a subset of combinations to keep the search reasonable
-SEARCH_COMBINATIONS = [
-    ['hflip'],  # Only horizontal flip
-    ['hflip', 'rotation'],  # Flip + rotation
-    ['hflip', 'color_jitter'],  # Flip + color
-    ['hflip', 'affine'],  # Flip + affine
-    ['hflip', 'rotation', 'color_jitter'],  # Flip + rotation + color
-    ['hflip', 'color_jitter', 'affine'],  # Flip + color + affine
-    ['hflip', 'rotation', 'affine'],  # Flip + rotation + affine
-    ['hflip', 'rotation', 'color_jitter', 'affine'],  # All basic augmentations
-    ['auto_augment'],  # Only AutoAugment
-    ['auto_augment', 'erasing'],  # AutoAugment + erasing
-    ['hflip', 'erasing'],  # Flip + erasing
-]
 
 def create_transform_from_config(config_list):
     """Create a transform from a list of transform configurations."""
@@ -149,69 +133,81 @@ def train_with_augmentation(transform, epochs, verbose=True):
         'model': model
     }
 
-def grid_search_augmentations(epochs=10, results_dir='scripts/outputs/augmentation_search'):
-    """Perform a grid search over different augmentation combinations."""
+def grid_search_augmentations(epochs=10, results_dir='scripts/outputs'):
+    """Perform a grid search over all possible augmentation combinations."""
     print(f"\nStarting grid search for optimal data augmentation combinations")
     print(f"Training each combination for {epochs} epochs")
     
     # Create results directory
     os.makedirs(results_dir, exist_ok=True)
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    results_file = os.path.join(results_dir, f"augmentation_search_{timestamp}.json")
+    results_file = os.path.join(results_dir, "augmentation_results.csv")
     
     # Initialize results
     results = []
     
-    # Create each combination and train
-    for search_keys in tqdm(SEARCH_COMBINATIONS, desc="Augmentation Combinations"):
-        # Generate all combinations of transforms for these keys
-        transform_options = []
-        for key in search_keys:
-            transform_options.append(AUGMENTATION_OPTIONS[key])
-        
-        # Generate all combinations for this set of keys
-        combinations = list(itertools.product(*transform_options))
-        
-        for combination in tqdm(combinations, desc=f"Testing {'+'.join(search_keys)}", leave=False):
-            # Filter out None values
-            transform_configs = [config for config in combination if config is not None]
-            
-            if not transform_configs:
-                continue  # Skip if no transforms selected
-            
-            # Create name for this combination
-            combination_name = '+'.join([config['name'] for config in transform_configs])
-            print(f"\nTesting: {combination_name}")
-            
-            # Create transform and train
-            transform = create_transform_from_config(transform_configs)
-            result = train_with_augmentation(transform, epochs)
-            
-            # Add metadata to result
-            result['name'] = combination_name
-            result['transform_configs'] = [
-                {'name': config['name'], 'params': config['params']} 
-                for config in transform_configs
-            ]
-            result['epochs'] = epochs
-            
-            # Save model description, but not the actual model
-            del result['model']
-            
-            # Save history in a compact format
-            result['history'] = {
-                'final_val_acc': result['val_acc'],
-                'final_val_loss': result['val_loss']
-            }
-            
-            # Append to results
-            results.append(result)
-            
-            # Save intermediate results
-            with open(results_file, 'w') as f:
-                json.dump(results, f, indent=2)
+    # Generate all possible combinations of augmentation types
+    augmentation_keys = list(AUGMENTATION_OPTIONS.keys())
     
-    # Find the best combination
+    # Create CSV file and write header
+    with open(results_file, 'w', newline='') as csvfile:
+        fieldnames = ['name', 'val_acc', 'val_loss', 'epochs', 'transform_config']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+    
+    # Try all possible combinations of augmentation types
+    for r in range(1, len(augmentation_keys) + 1):
+        for keys_subset in itertools.combinations(augmentation_keys, r):
+            print(f"\nTesting combinations of: {', '.join(keys_subset)}")
+            
+            # Generate all combinations of transforms for these keys
+            transform_options = []
+            for key in keys_subset:
+                transform_options.append(AUGMENTATION_OPTIONS[key])
+            
+            # Generate all combinations for this set of keys
+            combinations = list(itertools.product(*transform_options))
+            
+            for combination in tqdm(combinations, desc=f"Testing {'+'.join(keys_subset)}", leave=False):
+                # Filter out None values
+                transform_configs = [config for config in combination if config is not None]
+                
+                if not transform_configs:
+                    continue  # Skip if no transforms selected
+                
+                # Create name for this combination
+                combination_name = '+'.join([config['name'] for config in transform_configs])
+                print(f"\nTesting: {combination_name}")
+                
+                # Create transform and train
+                transform = create_transform_from_config(transform_configs)
+                result = train_with_augmentation(transform, epochs)
+                
+                # Add metadata to result
+                result['name'] = combination_name
+                result['transform_configs'] = transform_configs
+                result['epochs'] = epochs
+                
+                # Save model description, but not the actual model
+                del result['model']
+                
+                # Append to results
+                results.append(result)
+                
+                # Save to CSV
+                with open(results_file, 'a', newline='') as csvfile:
+                    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                    # Convert transform_configs to string for CSV
+                    transform_config_str = str([{'name': c['name'], 'params': c['params']} for c in transform_configs])
+                    writer.writerow({
+                        'name': combination_name,
+                        'val_acc': result['val_acc'],
+                        'val_loss': result['val_loss'],
+                        'epochs': epochs,
+                        'transform_config': transform_config_str
+                    })
+    
+    # Sort results by validation accuracy (descending)
     results.sort(key=lambda x: x['val_acc'], reverse=True)
     best_result = results[0]
     
