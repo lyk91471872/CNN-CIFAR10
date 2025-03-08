@@ -26,7 +26,7 @@ CIFAR10_STD = (0.24703279, 0.24348423, 0.26158753)
 
 # Base transforms (without augmentation)
 BASE_TRANSFORM = v2.Compose([
-    v2.ToTensor(),
+    v2.Compose([v2.ToImage(), v2.ToDtype(torch.float32, scale=True)]),
     v2.Normalize(CIFAR10_MEAN, CIFAR10_STD)
 ])
 
