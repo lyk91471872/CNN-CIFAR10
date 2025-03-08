@@ -99,11 +99,12 @@ def get_model():
     """Get the model class to use for training.
     This function is used to avoid circular imports between config.py and models.
     """
-    from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34, CustomResNet18X
+    from models import CustomEfficientNetV2_B0, CustomResNet18, CustomResNet34, CustomResNet18X, PreActResNet18
     # Uncomment the line for the model you want to use
     return CustomResNet18  # Standard ResNet18
     # return CustomResNet34  # Deeper ResNet34
     # return CustomResNet18X  # ResNet18 with custom channel size (using X value)
+    # return PreActResNet18  # Pre-activation ResNet18 (BN->ReLU->CONV order)
     # return CustomEfficientNetV2_B0  # EfficientNet
 
 # ResNet18x channel size
