@@ -16,7 +16,7 @@ def cli(ctx):
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
 
-@cli.command('search-channels', '-s', help='Find optimal channel size for CustomResNet18X')
+@cli.command('search-channels', help='Find optimal channel size for CustomResNet18X')
 def search_channel_size():
     """Find the optimal channel size for CustomResNet18X with <5M parameters."""
     print("\nSearching for optimal channel size...")
@@ -149,6 +149,7 @@ def list_sessions(model, type, limit):
 def main():
     # Manual alias mapping for dash-style aliases.
     alias_mapping = {
+        '-s': 'search-channels',
         '-t': 'train',
         '-c': 'crossval',
         '-p': 'pdf',
