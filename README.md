@@ -97,7 +97,7 @@ CNN-CIFAR10/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/lyk91471872/CNN-CIFAR10.git
+git clone git@github.com:lyk91471872/CNN-CIFAR10.git
 cd CNN-CIFAR10
 ```
 
