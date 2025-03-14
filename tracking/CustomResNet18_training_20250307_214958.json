@@ -1,0 +1,46 @@
+{
+  "model_name": "CustomResNet18",
+  "session_type": "training",
+  "timestamp": "2025-03-07T21:49:58.699314",
+  "config": {
+    "optimizer": {
+      "lr": 0.05,
+      "weight_decay": 0.0005,
+      "momentum": 0.9
+    },
+    "scheduler": {
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 10,
+      "min_lr": 1e-05,
+      "verbose": true
+    },
+    "training": {
+      "epochs": 300,
+      "early_stopping_patience": 30,
+      "early_stopping_min_delta": 0.0005,
+      "mixup_alpha": 0.2,
+      "device": "cuda",
+      "no_augmentation_epochs": 0,
+      "min_save_epoch": 20,
+      "warmup_epochs": 10
+    },
+    "model_params": {
+      "type": "CustomResNet18",
+      "params": "resnet18"
+    }
+  },
+  "metrics": {
+    "epochs": 136,
+    "best_val_loss": 0.21147206872701646,
+    "best_val_acc": 0.9436,
+    "final_train_loss": 0.5047879330813885,
+    "final_train_acc": 0.864219844563802
+  },
+  "files": {
+    "weights": "weights/CustomResNet18_E136_A94_20250307_215644.pth",
+    "history_plot": "graphs/history_CustomResNet18_E136_A94_20250307_215644.png",
+    "confusion_matrix_plot": "graphs/confusion_CustomResNet18_E136_A94_20250307_215644.png",
+    "predictions": "predictions/CustomResNet18_E136_A94_20250307_215645.csv"
+  }
+}

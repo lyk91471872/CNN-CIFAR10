@@ -1,0 +1,50 @@
+{
+  "model_name": "PreActResNet18",
+  "session_type": "training",
+  "timestamp": "2025-03-11T19:50:47.801516",
+  "config": {
+    "optimizer": {
+      "lr": 0.1,
+      "weight_decay": 0.0002,
+      "momentum": 0.9
+    },
+    "scheduler": {
+      "mode": "min",
+      "factor": 0.5,
+      "patience": 10,
+      "min_lr": 1e-05,
+      "verbose": true
+    },
+    "training": {
+      "epochs": 300,
+      "early_stopping_patience": 30,
+      "early_stopping_min_delta": 0.0005,
+      "mixup_alpha": 0.1,
+      "cutmix_alpha": 0.5,
+      "cutmix_prob": 0.3,
+      "device": "cuda",
+      "no_augmentation_epochs": 0,
+      "min_save_epoch": 20,
+      "warmup_epochs": 5
+    },
+    "model_params": {
+      "type": "PreActResNet18",
+      "num_classes": 10,
+      "activation": "SiLU",
+      "dropout_rate": 0.2
+    }
+  },
+  "metrics": {
+    "epochs": 111,
+    "best_val_loss": 0.8417081758379936,
+    "best_val_acc": 0.858,
+    "final_train_loss": 0.7422485758343014,
+    "final_train_acc": 0.9043160807291666
+  },
+  "files": {
+    "weights": "weights/PreActResNet18_E111_A85_20250311_195747.pth",
+    "history_plot": "graphs/history_PreActResNet18_E111_A85_20250311_195747.png",
+    "confusion_matrix_plot": "graphs/confusion_PreActResNet18_E111_A85_20250311_195747.png",
+    "predictions": "predictions/PreActResNet18_E111_A85_20250311_195747.csv"
+  }
+}

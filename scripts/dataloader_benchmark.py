@@ -9,8 +9,8 @@ import os
 from config import TRAIN_DATA_PATHS, DATALOADER, SCRIPTS_OUTPUT_DIR
 from dataset import create_dataset
 
-NUM_WORKERS_LIST = [4, 8, 16, 32, 64]
-BATCH_SIZE_LIST = [256, 512, 1024]
+NUM_WORKERS_LIST = [16, 32]
+BATCH_SIZE_LIST = [32, 64, 128, 256, 512]
 N_EPOCHS = 3
 
 def benchmark_dataloader(dataset, num_workers, batch_size):

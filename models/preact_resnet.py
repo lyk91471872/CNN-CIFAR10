@@ -1,13 +1,3 @@
-"""
-Pre-activation ResNet implementation.
-
-This variant of ResNet applies batch normalization and activation before convolutions,
-which has been shown to improve training dynamics and performance.
-
-Reference: "Identity Mappings in Deep Residual Networks" by He et al.
-https://arxiv.org/abs/1603.05027
-"""
-
 import torch
 import torch.nn as nn
 
@@ -15,11 +5,26 @@ import config as conf
 from .base import BaseModel
 
 
+class SEBlock(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super(SEBlock, self).__init__()
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, channels // reduction, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels // reduction, channels, bias=True),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        # Squeeze: global average pooling
+        y = self.avgpool(x).view(b, c)
+        # Excitation: FC layers
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y
+
 class PreActBlock(nn.Module):
-    """
-    Pre-activation version of the BasicBlock for ResNet.
-    The key difference is that BN and ReLU are performed before convolution.
-    """
     expansion = 1
 
     def __init__(self, in_channels, out_channels, stride=1):
@@ -36,6 +41,7 @@ class PreActBlock(nn.Module):
         # Second convolution
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3,
                                stride=1, padding=1, bias=False)
+        self.se = SEBlock(out_channels, reduction=16)
 
         # Shortcut connection to match dimensions
         self.shortcut = nn.Identity()
@@ -59,6 +65,9 @@ class PreActBlock(nn.Module):
         out = self.silu2(out)
         out = self.conv2(out)
         
+        # Apply SE
+        out = self.se(out)
+
         # Add shortcut
         out = out + shortcut
         
@@ -66,11 +75,6 @@ class PreActBlock(nn.Module):
 
 
 class PreActResNet18(BaseModel):
-    """
-    Pre-activation ResNet-18 implementation.
-
-    This network adapts the original ResNet-18 to use pre-activation blocks.
-    """
     def __init__(self, num_classes=10):
         super(PreActResNet18, self).__init__()
 
@@ -100,10 +104,6 @@ class PreActResNet18(BaseModel):
         self._initialize_weights()
 
     def _make_layer(self, block, in_channels, out_channels, num_blocks, stride):
-        """
-        Create a layer composed of multiple pre-activation blocks.
-        The first block may use a stride > 1 to downsample, other blocks use stride=1.
-        """
         layers = []
         # First block in the layer may downsample
         layers.append(block(in_channels, out_channels, stride))
@@ -115,7 +115,6 @@ class PreActResNet18(BaseModel):
         return nn.Sequential(*layers)
 
     def _initialize_weights(self):
-        """Initialize weights using the Kaiming method."""
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -124,7 +123,6 @@ class PreActResNet18(BaseModel):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        """Forward pass through the network."""
         # Initial convolution
         out = self.conv1(x)
 
@@ -148,11 +146,9 @@ class PreActResNet18(BaseModel):
         return out
 
     def __str__(self):
-        """String representation of the model."""
         return "preact_resnet18"
 
     def get_config(self):
-        """Get model configuration as a dictionary."""
         return {
             "type": "PreActResNet18",
             "num_classes": self.fc[1].out_features,

@@ -15,7 +15,7 @@ import pandas as pd
 import config as conf
 from dataset import create_dataset
 from utils.early_stopping import EarlyStopping
-from utils.augmentation import mixup_data
+from utils.augmentation import mixup_data, apply_cutmix
 from utils.visualization import plot_training_history, plot_confusion_matrix, plot_crossval_history, plot_crossval_confusion_matrices
 from utils.session import SessionTracker, get_session_filename
 
@@ -25,7 +25,7 @@ class Pipeline:
         self.use_warmup = use_warmup
         self.model = model.to(conf.TRAIN['device'])
         self.device = conf.TRAIN['device']
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
         # Reset best state dict
         self.model.best_state_dict = None
@@ -38,6 +38,7 @@ class Pipeline:
 
         # Create scheduler
         self.scheduler = ReduceLROnPlateau(self.optimizer, **conf.SCHEDULER)
+        # self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=conf.TRAIN['epochs'])
 
         # Early stopping
         self.early_stopping = EarlyStopping(
@@ -76,21 +77,24 @@ class Pipeline:
             inputs = aug_inputs if self.use_augmentation else clean_inputs
             inputs, targets = inputs.to(self.device), targets.to(self.device)
 
-            # Mixup augmentation
-            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+            use_cutmix = (conf.TRAIN['cutmix_prob'] > np.random.rand())
+            if use_cutmix:
+                inputs, targets_a, targets_b, lam = apply_cutmix(
+                    inputs, targets, conf.TRAIN['cutmix_alpha']
+                )
+                outputs = self.model(inputs)
+                loss = lam * self.criterion(outputs, targets_a) + (1 - lam) * self.criterion(outputs, targets_b)
+            elif self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
                 inputs, targets_a, targets_b, lam = mixup_data(
                     inputs, targets, conf.TRAIN['mixup_alpha']
                 )
-
-            self.optimizer.zero_grad()
-            outputs = self.model(inputs)
-
-            # Calculate loss
-            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+                outputs = self.model(inputs)
                 loss = lam * self.criterion(outputs, targets_a) + (1 - lam) * self.criterion(outputs, targets_b)
             else:
+                outputs = self.model(inputs)
                 loss = self.criterion(outputs, targets)
 
+            self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
 
@@ -98,7 +102,7 @@ class Pipeline:
             _, predicted = outputs.max(1)
             total += targets.size(0)
 
-            if self.use_augmentation and conf.TRAIN['mixup_alpha'] > 0:
+            if use_cutmix or (self.use_augmentation and conf.TRAIN['mixup_alpha']>0):
                 # Weighted accuracy based on label proportions
                 correct += (lam * predicted.eq(targets_a).float() + 
                           (1 - lam) * predicted.eq(targets_b).float()).sum().item()
@@ -173,11 +177,18 @@ class Pipeline:
 
         pbar = tqdm(range(epochs), desc="Training")
         for epoch in pbar:
-            if epoch == 51:
+            '''
+            # Uncomment for progressive augmentation
+            if epoch == 20:
                 train_loader.transform = conf.TRANSFORMF
-            elif epoch == 51:
+            elif epoch == 30:
                 train_loader.transform = conf.TRANSFORMFF
+            elif epoch == 40:
+                train_loader.transform = conf.TRANSFORMFFF
+            elif epoch == 50:
+                train_loader.transform = conf.TRANSFORMFFFF
             self.use_augmentation = (epoch >= conf.TRAIN['no_augmentation_epochs'])
+            '''
             if self.use_warmup:
                 self._warmup_learning_rate(epoch)
             train_loss, train_acc = self.train_one_epoch(train_loader)

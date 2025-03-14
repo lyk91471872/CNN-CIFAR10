@@ -1,0 +1,7 @@
+name,val_acc,val_loss,epochs,transform_config
+RandomHorizontalFlip,0.1104,3.1513662576675414,1,"[{'name': 'RandomHorizontalFlip', 'params': {'p': 0.5}}]"
+ColorJitter,0.1534,2.9329164743423464,1,"[{'name': 'ColorJitter', 'params': {'brightness': 0.2, 'contrast': 0.2, 'saturation': 0.2, 'hue': 0.1}}]"
+ColorJitter,0.1832,2.702115535736084,1,"[{'name': 'ColorJitter', 'params': {'brightness': 0.3, 'contrast': 0.3, 'saturation': 0.3, 'hue': 0.15}}]"
+RandomAffine,0.1928,3.24987211227417,1,"[{'name': 'RandomAffine', 'params': {'degrees': 10, 'translate': (0.1, 0.1), 'scale': (0.9, 1.1)}}]"
+RandomAffine,0.1496,3.53401517868042,1,"[{'name': 'RandomAffine', 'params': {'degrees': 15, 'translate': (0.15, 0.15), 'scale': (0.85, 1.15)}}]"
+RandomErasing,0.1166,3.1345168590545653,1,"[{'name': 'RandomErasing', 'params': {'p': 0.5, 'scale': (0.02, 0.2), 'ratio': (0.3, 3.3), 'value': 0}}]"
