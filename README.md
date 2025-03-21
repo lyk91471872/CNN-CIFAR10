@@ -3,7 +3,7 @@
 A PyTorch implementation of Convolutional Neural Networks for the CIFAR-10 dataset. This project provides a flexible and modular framework for training, evaluating, and deploying CNN models on the CIFAR-10 image classification task.
 
 ## About
-This repo is the codebase for the first group project of NYU CS-GY-6953 Deep Learning, 2025 Spring.
+This repo is the codebase for the first group project of NYU CS-GY-6953 Deep Learning, 2025 Spring. For the code under Setting 2 mentioned in the report, please check this [link](https://github.com/Hadlay-Zhang/ResNet-cifar).
 
 ### Team Members
 Yukang Luo, Zhilin Zhang, Yumeng Qian.
